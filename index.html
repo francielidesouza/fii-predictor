@@ -5,182 +5,90 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Preditor de DY — FIIs</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #ffffff;
-      --bg2: #f5f5f0;
-      --bg3: #eeede8;
-      --text: #1a1a18;
-      --text2: #5f5e5a;
-      --text3: #888780;
-      --border: rgba(0,0,0,0.12);
-      --border2: rgba(0,0,0,0.20);
-      --green: #0f6e56;
-      --green-bg: #e1f5ee;
-      --green-text: #085041;
-      --blue: #185fa5;
-      --blue-bg: #e6f1fb;
-      --blue-text: #0c447c;
-      --success-bg: #eaf3de;
-      --success-text: #27500a;
-      --radius: 12px;
-      --radius-sm: 8px;
+      --bg: #ffffff; --bg2: #f5f5f0; --bg3: #eeede8;
+      --text: #1a1a18; --text2: #5f5e5a; --text3: #888780;
+      --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.20);
+      --green: #0f6e56; --green-bg: #e1f5ee; --green-text: #085041;
+      --blue: #185fa5; --blue-bg: #e6f1fb; --blue-text: #0c447c;
+      --success-bg: #eaf3de; --amber-bg: #faeeda; --amber-text: #633806;
+      --radius: 12px; --radius-sm: 8px;
     }
-
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #1a1a18;
-        --bg2: #242422;
-        --bg3: #2c2c2a;
-        --text: #e8e6de;
-        --text2: #b4b2a9;
-        --text3: #888780;
-        --border: rgba(255,255,255,0.10);
-        --border2: rgba(255,255,255,0.18);
-        --green: #5dcaa5;
-        --green-bg: #04342c;
-        --green-text: #9fe1cb;
-        --blue: #85b7eb;
-        --blue-bg: #042c53;
-        --blue-text: #b5d4f4;
-        --success-bg: #173404;
-        --success-text: #c0dd97;
+        --bg: #1a1a18; --bg2: #242422; --bg3: #2c2c2a;
+        --text: #e8e6de; --text2: #b4b2a9; --text3: #888780;
+        --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.18);
+        --green: #5dcaa5; --green-bg: #04342c; --green-text: #9fe1cb;
+        --blue: #85b7eb; --blue-bg: #042c53; --blue-text: #b5d4f4;
+        --success-bg: #173404; --amber-bg: #412402; --amber-text: #FAC775;
       }
     }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg2);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 2rem 1rem;
-    }
-
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
     .container { max-width: 720px; margin: 0 auto; }
 
-    .header {
-      display: flex; align-items: center; gap: 14px;
-      margin-bottom: 1.5rem;
-      padding: 1.25rem;
-      background: var(--bg);
-      border-radius: var(--radius);
-      border: 0.5px solid var(--border);
-    }
-    .header-icon {
-      width: 44px; height: 44px; border-radius: 10px;
-      background: var(--green-bg);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
+    .header { display: flex; align-items: center; gap: 14px; margin-bottom: 1rem; padding: 1.25rem; background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); }
+    .header-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--green-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .header-icon svg { stroke: var(--green); }
-    .header-title { font-size: 16px; font-weight: 600; color: var(--text); }
+    .header-title { font-size: 16px; font-weight: 600; }
     .header-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
-    .badge {
-      display: inline-block; font-size: 10px; font-weight: 600;
-      padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle;
-    }
+    .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
     .badge-gb { background: var(--green-bg); color: var(--green-text); }
     .badge-ml { background: var(--blue-bg); color: var(--blue-text); }
 
-    .api-bar {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; color: var(--text3);
-      margin-bottom: 1rem; padding: 8px 12px;
-      background: var(--bg); border-radius: var(--radius-sm);
-      border: 0.5px solid var(--border);
-    }
+    .api-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); margin-bottom: 1rem; padding: 8px 12px; background: var(--bg); border-radius: var(--radius-sm); border: 0.5px solid var(--border); }
     .api-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
     .api-dot.online { background: var(--green); }
     .api-dot.offline { background: #c0392b; }
 
-    .card {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-    }
+    /* Abas */
+    .tabs { display: flex; gap: 4px; margin-bottom: 1rem; background: var(--bg); border-radius: var(--radius-sm); padding: 4px; border: 0.5px solid var(--border); }
+    .tab { flex: 1; padding: 9px 12px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--text3); cursor: pointer; transition: background .15s, color .15s; }
+    .tab.active { background: var(--green-bg); color: var(--green-text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
-    .section-label {
-      font-size: 10px; font-weight: 600; color: var(--text3);
-      text-transform: uppercase; letter-spacing: .7px; margin-bottom: 12px;
-    }
-
+    .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .section-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 12px; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-
-    @media (max-width: 480px) {
-      .grid2, .grid3 { grid-template-columns: 1fr; }
-      .metric-grid { grid-template-columns: 1fr 1fr; }
-      .result-row { grid-template-columns: 1fr; }
-    }
-
+    @media (max-width: 480px) { .grid2, .grid3 { grid-template-columns: 1fr; } .metric-grid { grid-template-columns: 1fr 1fr; } .result-row { grid-template-columns: 1fr; } }
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field label { font-size: 12px; color: var(--text2); font-weight: 500; }
-    .field select, .field input {
-      font-size: 13px; padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      border: 0.5px solid var(--border2);
-      background: var(--bg); color: var(--text);
-      width: 100%; outline: none; transition: border-color .15s;
-    }
+    .field select, .field input { font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); width: 100%; outline: none; transition: border-color .15s; }
     .field select:focus, .field input:focus { border-color: var(--green); }
-
     .divider { height: 0.5px; background: var(--border); margin: 1rem 0; }
 
-    .btn-predict {
-      width: 100%; padding: 12px;
-      border-radius: var(--radius-sm);
-      border: 0.5px solid var(--green);
-      background: var(--green-bg); color: var(--green-text);
-      font-size: 14px; font-weight: 600;
-      cursor: pointer; margin-top: 4px;
-      transition: opacity .15s;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .btn-predict:hover { opacity: .8; }
-    .btn-predict:disabled { opacity: .5; cursor: not-allowed; }
+    .btn { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 0.5px solid var(--green); background: var(--green-bg); color: var(--green-text); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn:hover { opacity: .8; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-secondary { background: var(--bg2); border-color: var(--border2); color: var(--text2); }
 
-    .spinner {
-      display: none; width: 14px; height: 14px;
-      border: 2px solid var(--green-text); border-top-color: transparent;
-      border-radius: 50%; animation: spin .7s linear infinite;
-    }
+    .spinner { display: none; width: 14px; height: 14px; border: 2px solid var(--green-text); border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .error-msg {
-      display: none; margin-top: 10px; padding: 10px 12px;
-      background: #fdf0ee; border: 0.5px solid #e8c4bf;
-      border-radius: var(--radius-sm);
-      font-size: 12px; color: #c0392b; line-height: 1.5;
-    }
+    .error-msg { display: none; margin-top: 10px; padding: 10px 12px; background: #fdf0ee; border: 0.5px solid #e8c4bf; border-radius: var(--radius-sm); font-size: 12px; color: #c0392b; line-height: 1.5; }
 
+    /* Resultados fundo único */
     .metric-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
     .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 10px 12px; }
     .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
     .metric-val { font-size: 20px; font-weight: 600; color: var(--text); }
     .metric-val.good { color: var(--green); }
-
     .result-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1.25rem; }
-    .result-card {
-      background: var(--bg2); border-radius: var(--radius-sm); padding: 12px;
-      text-align: center; border: 0.5px solid var(--border);
-    }
+    .result-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px; text-align: center; border: 0.5px solid var(--border); }
     .result-card.top { background: var(--success-bg); border-color: var(--green); }
     .result-label { font-size: 11px; color: var(--text3); margin-bottom: 5px; }
     .result-dy { font-size: 22px; font-weight: 600; color: var(--text); }
     .result-dy.good { color: var(--green); }
     .result-unit { font-size: 12px; font-weight: 400; color: var(--text3); }
     .result-class { font-size: 11px; color: var(--text3); margin-top: 3px; }
-
     .chart-wrap { position: relative; height: 220px; margin-top: 1rem; }
-
     .seg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
-    .seg-card {
-      background: var(--bg2); border-radius: var(--radius-sm); padding: 14px;
-      border: 0.5px solid var(--border);
-    }
+    .seg-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 14px; border: 0.5px solid var(--border); }
     .seg-card.best { background: var(--success-bg); border-color: var(--green); }
     .seg-best-label { font-size: 10px; font-weight: 600; color: var(--green-text); margin-bottom: 5px; }
     .seg-name { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
@@ -188,24 +96,61 @@
     .seg-dy { font-size: 20px; font-weight: 600; color: var(--text); }
     .seg-dy.good { color: var(--green); }
     .seg-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
     .imp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
     .imp-label { font-size: 12px; color: var(--text2); min-width: 110px; }
     .imp-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
     .imp-fill { height: 5px; border-radius: 3px; background: var(--green); }
     .imp-val { font-size: 11px; color: var(--text3); min-width: 32px; text-align: right; }
-
     .rec-box { font-size: 13px; color: var(--text); line-height: 1.75; }
     .rec-highlight { color: var(--green-text); background: var(--green-bg); padding: 10px 12px; border-radius: var(--radius-sm); margin: 8px 0; }
-    .tip {
-      font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.5;
-      padding-top: 10px; border-top: 0.5px solid var(--border);
-    }
+    .tip { font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.5; padding-top: 10px; border-top: 0.5px solid var(--border); }
 
-    footer {
-      text-align: center; font-size: 11px; color: var(--text3);
-      margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--border);
-    }
+    /* Upload portfólio */
+    .upload-area { border: 1.5px dashed var(--border2); border-radius: var(--radius-sm); padding: 2rem; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 1rem; }
+    .upload-area:hover, .upload-area.drag { border-color: var(--green); background: var(--green-bg); }
+    .upload-icon { font-size: 32px; margin-bottom: 8px; }
+    .upload-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .upload-sub { font-size: 12px; color: var(--text3); }
+    .upload-file-info { font-size: 12px; color: var(--green-text); margin-top: 8px; font-weight: 500; }
+
+    .template-box { background: var(--amber-bg); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 1rem; }
+    .template-title { font-size: 12px; font-weight: 600; color: var(--amber-text); margin-bottom: 6px; }
+    .template-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .template-table th { text-align: left; color: var(--amber-text); padding: 3px 8px; font-weight: 600; }
+    .template-table td { color: var(--text2); padding: 3px 8px; font-family: monospace; }
+
+    /* Resultados portfólio */
+    .portfolio-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1rem; }
+    .summary-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px; text-align: center; border: 0.5px solid var(--border); }
+    .summary-card.highlight { background: var(--success-bg); border-color: var(--green); }
+    .summary-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+    .summary-val { font-size: 22px; font-weight: 600; color: var(--text); }
+    .summary-val.good { color: var(--green); }
+    .summary-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    .portfolio-chart-wrap { position: relative; height: 260px; margin-bottom: 1.5rem; }
+
+    /* Tabela de resultados */
+    .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .result-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
+    .result-table td { padding: 10px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table tr:hover td { background: var(--bg2); }
+    .rank-badge { display: inline-block; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 600; text-align: center; line-height: 22px; }
+    .rank-1 { background: #faeeda; color: #633806; }
+    .rank-2 { background: var(--bg3); color: var(--text2); }
+    .rank-3 { background: var(--bg3); color: var(--text2); }
+    .dy-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+    .dy-high { background: var(--success-bg); color: var(--green-text); }
+    .dy-mid { background: var(--blue-bg); color: var(--blue-text); }
+    .dy-low { background: var(--bg3); color: var(--text3); }
+
+    .progress-bar-wrap { margin-bottom: 6px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+    .progress-track { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 5px; border-radius: 3px; background: var(--green); transition: width .4s; }
+
+    footer { text-align: center; font-size: 11px; color: var(--text3); margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--border); }
   </style>
 </head>
 <body>
@@ -216,11 +161,7 @@
       <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke-width="1.5"><path d="M3 14l4-5 4 3 4-7"/><circle cx="17" cy="5" r="2"/></svg>
     </div>
     <div>
-      <div class="header-title">
-        Preditor de DY — FIIs
-        <span class="badge badge-gb">Gradient Boosting</span>
-        <span class="badge badge-ml">R²=0.705</span>
-      </div>
+      <div class="header-title">Preditor de DY — FIIs <span class="badge badge-gb">Gradient Boosting</span><span class="badge badge-ml">R²=0.705</span></div>
       <div class="header-sub">Modelo treinado com dados reais 2019–2024 · 816 observações · 12 fundos</div>
     </div>
   </div>
@@ -230,92 +171,138 @@
     <span id="apiStatus">Verificando API...</span>
   </div>
 
-  <div class="card">
-    <div class="section-label">Selecione o fundo</div>
-    <div class="grid2">
-      <div class="field">
-        <label>Segmento</label>
-        <select id="segmento" onchange="onSegChange()">
-          <option value="Agencia Bancaria">Agência Bancária</option>
-          <option value="Lajes Corporativas">Lajes Corporativas</option>
-          <option value="Logistico">Logístico</option>
-          <option value="Shoppings e Varejo">Shoppings e Varejo</option>
-          <option value="Galpoes">Galpões</option>
-          <option value="Titulos e Valores Mobiliarios">Títulos e Valores Mob.</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Sigla do fundo</label>
-        <select id="sigla" onchange="onFiiChange()"></select>
-      </div>
-    </div>
-    <div class="grid2">
-      <div class="field">
-        <label>Tipo do fundo</label>
-        <select id="tipo">
-          <option>Fundo de Tijolo</option>
-          <option>Fundo de Papel</option>
-          <option>Fundo de Fundos</option>
-          <option>Fundo de Desenvolvimento</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Horizonte de previsão</label>
-        <select id="horizonte">
-          <option value="3">3 meses</option>
-          <option value="6">6 meses</option>
-          <option value="12" selected>12 meses</option>
-        </select>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="section-label">Indicadores atuais do fundo</div>
-    <div class="grid3">
-      <div class="field">
-        <label>DY atual (% a.m.)</label>
-        <input type="number" id="dy" value="0.75" min="0" max="5" step="0.01">
-      </div>
-      <div class="field">
-        <label>P/VP</label>
-        <input type="number" id="pvp" value="0.80" min="0.1" max="3" step="0.01">
-      </div>
-      <div class="field">
-        <label>Vacância (%)</label>
-        <input type="number" id="vac" value="5.3" min="0" max="100" step="0.1">
-      </div>
-    </div>
-    <button class="btn-predict" id="btnPredict" onclick="predict()">
-      <span id="btnText">Gerar previsão com Gradient Boosting</span>
-      <div class="spinner" id="spinner"></div>
-    </button>
-    <div class="error-msg" id="errorMsg"></div>
+  <!-- Abas -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('manual')">Fundo individual</button>
+    <button class="tab" onclick="switchTab('portfolio')">Meu portfólio (Excel)</button>
   </div>
 
-  <div id="results" style="display:none">
+  <!-- ABA 1: Fundo individual -->
+  <div id="tab-manual" class="tab-panel active">
     <div class="card">
-      <div class="section-label">Previsão de DY — <span id="lbl-sigla"></span> · <span id="lbl-seg"></span></div>
-      <div class="result-row" id="result-cards"></div>
-      <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="section-label">Comparativo do segmento</div>
-      <div class="seg-grid" id="seg-compare"></div>
-      <div class="tip">Baseado nas medianas previstas pelo Gradient Boosting para cada fundo do segmento. Dados de treino: 2019–2024.</div>
-    </div>
-    <div class="card">
-      <div class="section-label">Desempenho do modelo (validação cruzada 5 folds)</div>
-      <div class="metric-grid">
-        <div class="metric"><div class="metric-label">R²</div><div class="metric-val good">0.705</div></div>
-        <div class="metric"><div class="metric-label">MAPE</div><div class="metric-val good">8.68%</div></div>
-        <div class="metric"><div class="metric-label">vs Random Forest</div><div class="metric-val good">+4.2%</div></div>
-        <div class="metric"><div class="metric-label">Observações</div><div class="metric-val">816</div></div>
+      <div class="section-label">Selecione o fundo</div>
+      <div class="grid2">
+        <div class="field"><label>Segmento</label>
+          <select id="segmento" onchange="onSegChange()">
+            <option value="Agencia Bancaria">Agência Bancária</option>
+            <option value="Lajes Corporativas">Lajes Corporativas</option>
+            <option value="Logistico">Logístico</option>
+            <option value="Shoppings e Varejo">Shoppings e Varejo</option>
+            <option value="Galpoes">Galpões</option>
+            <option value="Titulos e Valores Mobiliarios">Títulos e Valores Mob.</option>
+          </select>
+        </div>
+        <div class="field"><label>Sigla do fundo</label><select id="sigla" onchange="onFiiChange()"></select></div>
       </div>
-      <div class="section-label">Importância das variáveis</div>
-      <div id="imp-bars"></div>
+      <div class="grid2">
+        <div class="field"><label>Tipo do fundo</label>
+          <select id="tipo"><option>Fundo de Tijolo</option><option>Fundo de Papel</option><option>Fundo de Fundos</option><option>Fundo de Desenvolvimento</option></select>
+        </div>
+        <div class="field"><label>Horizonte de previsão</label>
+          <select id="horizonte"><option value="3">3 meses</option><option value="6">6 meses</option><option value="12" selected>12 meses</option></select>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label">Indicadores atuais do fundo</div>
+      <div class="grid3">
+        <div class="field"><label>DY atual (% a.m.)</label><input type="number" id="dy" value="0.75" min="0" max="5" step="0.01"></div>
+        <div class="field"><label>P/VP</label><input type="number" id="pvp" value="0.80" min="0.1" max="3" step="0.01"></div>
+        <div class="field"><label>Vacância (%)</label><input type="number" id="vac" value="5.3" min="0" max="100" step="0.1"></div>
+      </div>
+      <button class="btn" id="btnPredict" onclick="predictSingle()">
+        <span id="btnText">Gerar previsão com Gradient Boosting</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+      <div class="error-msg" id="errorMsg"></div>
     </div>
+
+    <div id="results" style="display:none">
+      <div class="card">
+        <div class="section-label">Previsão de DY — <span id="lbl-sigla"></span> · <span id="lbl-seg"></span></div>
+        <div class="result-row" id="result-cards"></div>
+        <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-label">Comparativo do segmento</div>
+        <div class="seg-grid" id="seg-compare"></div>
+        <div class="tip">Baseado nas medianas previstas pelo Gradient Boosting para cada fundo do segmento.</div>
+      </div>
+      <div class="card">
+        <div class="section-label">Desempenho do modelo</div>
+        <div class="metric-grid">
+          <div class="metric"><div class="metric-label">R²</div><div class="metric-val good">0.705</div></div>
+          <div class="metric"><div class="metric-label">MAPE</div><div class="metric-val good">8.68%</div></div>
+          <div class="metric"><div class="metric-label">vs Random Forest</div><div class="metric-val good">+4.2%</div></div>
+          <div class="metric"><div class="metric-label">Observações</div><div class="metric-val">816</div></div>
+        </div>
+        <div class="section-label">Importância das variáveis</div>
+        <div id="imp-bars"></div>
+      </div>
+      <div class="card">
+        <div class="section-label">Recomendação para o investidor</div>
+        <div class="rec-box" id="rec-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA 2: Portfólio -->
+  <div id="tab-portfolio" class="tab-panel">
+
     <div class="card">
-      <div class="section-label">Recomendação para o investidor</div>
-      <div class="rec-box" id="rec-box"></div>
+      <div class="section-label">Modelo de planilha esperado</div>
+      <div class="template-box">
+        <div class="template-title">Seu Excel deve ter estas colunas (primeira linha = cabeçalho):</div>
+        <table class="template-table">
+          <tr><th>Sigla</th><th>DY_lag1</th><th>DY_lag2</th><th>DY_lag3</th><th>P_VP</th><th>Vacancia</th></tr>
+          <tr><td>HGLG11</td><td>0.82</td><td>0.80</td><td>0.79</td><td>1.05</td><td>3.1</td></tr>
+          <tr><td>KNCR11</td><td>0.98</td><td>0.95</td><td>0.97</td><td>1.12</td><td>0.0</td></tr>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;">
+        DY_lag1/2/3 = Dividend Yield dos últimos 3 meses em % (ex: 0.82 = 0,82% a.m.) · P_VP e Vacancia são opcionais
+      </div>
+
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="upload-icon">📊</div>
+        <div class="upload-title">Clique para selecionar ou arraste seu Excel aqui</div>
+        <div class="upload-sub">.xlsx ou .xls · máximo 5 MB</div>
+        <div class="upload-file-info" id="fileInfo"></div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="onFileSelect(event)">
+
+      <button class="btn" id="btnPortfolio" onclick="predictPortfolio()" disabled>
+        <span id="btnPortfolioText">Selecione um arquivo primeiro</span>
+        <div class="spinner" id="spinnerPortfolio"></div>
+      </button>
+      <div class="error-msg" id="errorPortfolio"></div>
+    </div>
+
+    <div id="portfolioResults" style="display:none">
+
+      <div class="card">
+        <div class="section-label">Resumo do portfólio</div>
+        <div class="portfolio-summary" id="portfolioSummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">DY previsto por fundo (% a.a.)</div>
+        <div class="portfolio-chart-wrap"><canvas id="portfolioChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">Ranking do portfólio</div>
+        <table class="result-table" id="portfolioTable">
+          <thead><tr><th>#</th><th>Fundo</th><th>DY previsto (a.m.)</th><th>DY previsto (a.a.)</th><th>Classificação</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="section-label">Distribuição do DY no portfólio</div>
+        <div id="portfolioBars"></div>
+        <div class="tip">Previsão gerada pelo Gradient Boosting para o próximo mês. Não constitui recomendação de investimento.</div>
+      </div>
+
     </div>
   </div>
 
@@ -329,12 +316,9 @@
   const API = 'https://fii-predictor.onrender.com';
 
   const segFiis = {
-    'Agencia Bancaria':['CXAG11','FAMB11'],
-    'Lajes Corporativas':['HGRE11','JSRE11'],
-    'Logistico':['HGLG11','XPLG11'],
-    'Shoppings e Varejo':['MALL11','XPML11'],
-    'Galpoes':['RBRL11','VILG11'],
-    'Titulos e Valores Mobiliarios':['HGCR11','KNCR11']
+    'Agencia Bancaria':['CXAG11','FAMB11'],'Lajes Corporativas':['HGRE11','JSRE11'],
+    'Logistico':['HGLG11','XPLG11'],'Shoppings e Varejo':['MALL11','XPML11'],
+    'Galpoes':['RBRL11','VILG11'],'Titulos e Valores Mobiliarios':['HGCR11','KNCR11']
   };
   const segTipo = {
     'Agencia Bancaria':'Fundo de Tijolo','Lajes Corporativas':'Fundo de Tijolo',
@@ -342,226 +326,244 @@
     'Galpoes':'Fundo de Tijolo','Titulos e Valores Mobiliarios':'Fundo de Papel'
   };
   const fiiBenchmarks = {
-    'CXAG11':{dy:0.75,pvp:0.80,vac:5.3,medDY:0.00749},
-    'FAMB11':{dy:0.71,pvp:0.85,vac:6.1,medDY:0.00712},
-    'HGRE11':{dy:0.68,pvp:0.92,vac:8.2,medDY:0.00695},
-    'JSRE11':{dy:0.72,pvp:0.88,vac:7.5,medDY:0.00721},
-    'HGLG11':{dy:0.82,pvp:1.05,vac:3.1,medDY:0.00831},
-    'XPLG11':{dy:0.79,pvp:0.98,vac:4.2,medDY:0.00798},
-    'MALL11':{dy:0.74,pvp:0.94,vac:6.8,medDY:0.00742},
-    'XPML11':{dy:0.71,pvp:0.91,vac:7.2,medDY:0.00718},
-    'RBRL11':{dy:0.77,pvp:0.87,vac:5.5,medDY:0.00774},
-    'VILG11':{dy:0.80,pvp:1.02,vac:3.8,medDY:0.00806},
-    'HGCR11':{dy:0.92,pvp:1.08,vac:0.0,medDY:0.00925},
-    'KNCR11':{dy:0.98,pvp:1.12,vac:0.0,medDY:0.00981}
+    'CXAG11':{dy:0.75,pvp:0.80,vac:5.3,medDY:0.00749},'FAMB11':{dy:0.71,pvp:0.85,vac:6.1,medDY:0.00712},
+    'HGRE11':{dy:0.68,pvp:0.92,vac:8.2,medDY:0.00695},'JSRE11':{dy:0.72,pvp:0.88,vac:7.5,medDY:0.00721},
+    'HGLG11':{dy:0.82,pvp:1.05,vac:3.1,medDY:0.00831},'XPLG11':{dy:0.79,pvp:0.98,vac:4.2,medDY:0.00798},
+    'MALL11':{dy:0.74,pvp:0.94,vac:6.8,medDY:0.00742},'XPML11':{dy:0.71,pvp:0.91,vac:7.2,medDY:0.00718},
+    'RBRL11':{dy:0.77,pvp:0.87,vac:5.5,medDY:0.00774},'VILG11':{dy:0.80,pvp:1.02,vac:3.8,medDY:0.00806},
+    'HGCR11':{dy:0.92,pvp:1.08,vac:0.0,medDY:0.00925},'KNCR11':{dy:0.98,pvp:1.12,vac:0.0,medDY:0.00981}
   };
 
-  // Status da API
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='manual')||(i===1&&tab==='portfolio')));
+    document.getElementById('tab-manual').classList.toggle('active', tab==='manual');
+    document.getElementById('tab-portfolio').classList.toggle('active', tab==='portfolio');
+  }
+
+  // ── API status ────────────────────────────────────────────────────────────
   async function checkApiStatus() {
     try {
-      const r = await fetch(API + '/health', { signal: AbortSignal.timeout(8000) });
-      if (r.ok) {
-        document.getElementById('apiDot').classList.add('online');
-        document.getElementById('apiStatus').textContent = 'API online — modelo pronto';
-      } else throw new Error();
+      const r = await fetch(API+'/health',{signal:AbortSignal.timeout(8000)});
+      if(r.ok){document.getElementById('apiDot').classList.add('online');document.getElementById('apiStatus').textContent='API online — modelo pronto';}
+      else throw new Error();
     } catch {
       document.getElementById('apiDot').classList.add('offline');
-      document.getElementById('apiStatus').textContent =
-        'API inicializando (plano gratuito) — primeira previsão pode levar ~50s';
+      document.getElementById('apiStatus').textContent='API inicializando (plano gratuito) — primeira previsão pode levar ~50s';
     }
   }
   checkApiStatus();
 
-  function onSegChange() {
-    const seg = document.getElementById('segmento').value;
-    const siglaEl = document.getElementById('sigla');
-    siglaEl.innerHTML = '';
-    (segFiis[seg]||[]).forEach(f => {
-      const o = document.createElement('option');
-      o.value = f; o.textContent = f; siglaEl.appendChild(o);
-    });
-    document.getElementById('tipo').value = segTipo[seg] || 'Fundo de Tijolo';
+  // ── Seletores fundo individual ────────────────────────────────────────────
+  function onSegChange(){
+    const seg=document.getElementById('segmento').value;
+    const el=document.getElementById('sigla');
+    el.innerHTML='';
+    (segFiis[seg]||[]).forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;el.appendChild(o);});
+    document.getElementById('tipo').value=segTipo[seg]||'Fundo de Tijolo';
     onFiiChange();
   }
-
-  function onFiiChange() {
-    const fii = document.getElementById('sigla').value;
-    const b = fiiBenchmarks[fii];
-    if (b) {
-      document.getElementById('dy').value  = b.dy;
-      document.getElementById('pvp').value = b.pvp;
-      document.getElementById('vac').value = b.vac;
-    }
+  function onFiiChange(){
+    const b=fiiBenchmarks[document.getElementById('sigla').value];
+    if(b){document.getElementById('dy').value=b.dy;document.getElementById('pvp').value=b.pvp;document.getElementById('vac').value=b.vac;}
   }
 
-  // Chama a API real
-  async function callApi(sigla, dy, pvp, vac) {
-    const payload = {
-      sigla,
-      dy_lag1: dy / 100,
-      dy_lag2: dy / 100,
-      dy_lag3: dy / 100,
-      p_vp: pvp,
-      vacancia: vac,
-      modelo: 'Gradient Boosting'
-    };
-    const res = await fetch(API + '/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60000)
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Erro na API');
-    }
+  // ── Chamada API ───────────────────────────────────────────────────────────
+  async function callApi(sigla,dy_lag1,dy_lag2,dy_lag3,pvp,vac){
+    const payload={sigla,dy_lag1,dy_lag2,dy_lag3,modelo:'Gradient Boosting'};
+    if(pvp!=null) payload.p_vp=pvp;
+    if(vac!=null) payload.vacancia=vac;
+    const res=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(60000)});
+    if(!res.ok){const e=await res.json();throw new Error(e.detail||'Erro na API');}
     return res.json();
   }
 
-  function buildPredSeries(baseDY, horizonte) {
-    return Array.from({length: horizonte}, (_, i) =>
-      +(baseDY * (1 - i * 0.003) + (Math.random() - 0.5) * 0.0003).toFixed(6)
-    );
+  function buildPredSeries(baseDY,horizonte){
+    return Array.from({length:horizonte},(_,i)=>+(baseDY*(1-i*0.003)+(Math.random()-0.5)*0.0003).toFixed(6));
   }
 
-  let chartInst = null;
-
-  async function predict() {
-    const dy        = parseFloat(document.getElementById('dy').value);
-    const pvp       = parseFloat(document.getElementById('pvp').value);
-    const vac       = parseFloat(document.getElementById('vac').value);
-    const seg       = document.getElementById('segmento').value;
-    const sigla     = document.getElementById('sigla').value;
-    const horizonte = parseInt(document.getElementById('horizonte').value);
-
-    const btn      = document.getElementById('btnPredict');
-    const btnText  = document.getElementById('btnText');
-    const spinner  = document.getElementById('spinner');
-    const errorMsg = document.getElementById('errorMsg');
-
-    btn.disabled = true;
-    btnText.textContent = 'Consultando modelo...';
-    spinner.style.display = 'block';
-    errorMsg.style.display = 'none';
-    document.getElementById('results').style.display = 'none';
-
+  // ── Fundo individual ──────────────────────────────────────────────────────
+  let chartInst=null;
+  async function predictSingle(){
+    const dy=parseFloat(document.getElementById('dy').value);
+    const pvp=parseFloat(document.getElementById('pvp').value);
+    const vac=parseFloat(document.getElementById('vac').value);
+    const seg=document.getElementById('segmento').value;
+    const sigla=document.getElementById('sigla').value;
+    const horizonte=parseInt(document.getElementById('horizonte').value);
+    const btn=document.getElementById('btnPredict');
+    const errorMsg=document.getElementById('errorMsg');
+    btn.disabled=true;document.getElementById('btnText').textContent='Consultando modelo...';
+    document.getElementById('spinner').style.display='block';
+    errorMsg.style.display='none';document.getElementById('results').style.display='none';
     let baseDY;
-    try {
-      const data = await callApi(sigla, dy, pvp, vac);
-      baseDY = data.dy_previsto;
-    } catch (err) {
-      errorMsg.textContent = err.message.includes('timeout')
-        ? 'A API demorou para responder — ela pode estar inicializando. Aguarde 30s e tente novamente.'
-        : 'Erro ao consultar a API: ' + err.message;
-      errorMsg.style.display = 'block';
-      btn.disabled = false;
-      btnText.textContent = 'Gerar previsão com Gradient Boosting';
-      spinner.style.display = 'none';
-      return;
+    try{
+      const data=await callApi(sigla,dy/100,dy/100,dy/100,pvp,vac);
+      baseDY=data.dy_previsto;
+    }catch(err){
+      errorMsg.textContent=err.message.includes('timeout')?'A API demorou para responder. Aguarde 30s e tente novamente.':'Erro: '+err.message;
+      errorMsg.style.display='block';
+      btn.disabled=false;document.getElementById('btnText').textContent='Gerar previsão com Gradient Boosting';document.getElementById('spinner').style.display='none';return;
+    }
+    btn.disabled=false;document.getElementById('btnText').textContent='Gerar previsão com Gradient Boosting';document.getElementById('spinner').style.display='none';
+    const preds=buildPredSeries(baseDY,horizonte);
+    document.getElementById('results').style.display='block';
+    document.getElementById('lbl-sigla').textContent=sigla;
+    document.getElementById('lbl-seg').textContent=seg;
+    const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const now=new Date(2024,11,1);
+    const futLabels=Array.from({length:horizonte},(_,i)=>{const d=new Date(2025,i,1);return months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);});
+    const showIdx=[2,Math.floor(horizonte/2),horizonte-1].filter((v,i,a)=>a.indexOf(v)===i&&v<horizonte);
+    const periodLabels=['3 meses',Math.floor(horizonte/2)+' meses',horizonte+' meses'];
+    document.getElementById('result-cards').innerHTML=showIdx.map((idx,i)=>{
+      const val=preds[idx];const isTop=i===showIdx.length-1;
+      return`<div class="result-card ${isTop?'top':''}"><div class="result-label">${periodLabels[i]} · ${futLabels[idx]||''}</div><div class="result-dy ${val>0.008?'good':''}">${(val*100).toFixed(3)}<span class="result-unit">% a.m.</span></div><div class="result-class">${(val*12*100).toFixed(2)}% a.a. · ${val>0.0085?'DY alto':val>0.007?'DY moderado':'DY baixo'}</div></div>`;
+    }).join('');
+    const ranked=(segFiis[seg]||[]).map(f=>({sigla:f,medDY:fiiBenchmarks[f]?.medDY||0})).sort((a,b)=>b.medDY-a.medDY);
+    document.getElementById('seg-compare').innerHTML=ranked.map((f,i)=>`<div class="seg-card ${i===0?'best':''}"> ${i===0?'<div class="seg-best-label">Melhor do segmento</div>':''}<div class="seg-name">${seg}</div><div class="seg-fii">${f.sigla}</div><div class="seg-dy ${i===0?'good':''}">${(f.medDY*12*100).toFixed(2)}% a.a.</div><div class="seg-sub">mediana prevista</div></div>`).join('');
+    const b=fiiBenchmarks[sigla];const refDY=b?b.medDY:baseDY;
+    const histDY=Array.from({length:12},(_,i)=>+(refDY*(1+(11-i)*0.003)+(Math.random()-0.5)*0.0005).toFixed(6));
+    const histLabels=Array.from({length:12},(_,i)=>{const d=new Date(2024,i,1);return months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);});
+    const allLabels=[...histLabels,...futLabels];
+    const histData=[...histDY.map(v=>+(v*100).toFixed(4)),null];
+    const predData=[...Array(12).fill(null),+(histDY[11]*100).toFixed(4),...preds.map(v=>+(v*100).toFixed(4))];
+    if(chartInst)chartInst.destroy();
+    chartInst=new Chart(document.getElementById('mainChart').getContext('2d'),{type:'line',data:{labels:allLabels,datasets:[{label:'Histórico (2024)',data:histData,borderColor:'#378ADD',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3,spanGaps:false},{label:'Previsão GB (2025)',data:predData,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,borderDash:[5,4],pointRadius:2,tension:0.3,fill:true,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(3)+'% a.m.':''}`}}},scales:{x:{ticks:{font:{size:10},maxRotation:45}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'}}}}});
+    const importance=[{l:'DY lag 1 (mês ant.)',v:34},{l:'DY lag 2',v:21},{l:'Sigla (identidade)',v:16},{l:'DY lag 3',v:13},{l:'P/VP',v:10},{l:'Vacância',v:6}];
+    document.getElementById('imp-bars').innerHTML=importance.map(f=>`<div class="imp-row"><span class="imp-label">${f.l}</span><div class="imp-track"><div class="imp-fill" style="width:${f.v}%"></div></div><span class="imp-val">${f.v}%</span></div>`).join('');
+    const avgDY=(preds.reduce((a,b)=>a+b,0)/preds.length*12*100).toFixed(2);
+    const trend=preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
+    const bestFii=ranked[0];const isBest=sigla===bestFii.sigla;
+    document.getElementById('rec-box').innerHTML=`O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong> para os próximos ${horizonte} meses, com ${trend}.<br><br><div class="rec-highlight">${isBest?`O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`:`O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`}</div>P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br>Vacância de ${vac.toFixed(1)}%: ${vac<10?'nível saudável — rendimentos consistentes':'acima do ideal — risco de pressão nos rendimentos'}.<br><br><span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · API: fii-predictor.onrender.com · R²=0.705 · MAPE=8.68% · Não constitui recomendação de investimento.</span>`;
+    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  // ── Upload portfólio ──────────────────────────────────────────────────────
+  let portfolioData = [];
+
+  function onDragOver(e){e.preventDefault();document.getElementById('uploadArea').classList.add('drag');}
+  function onDragLeave(){document.getElementById('uploadArea').classList.remove('drag');}
+  function onDrop(e){e.preventDefault();document.getElementById('uploadArea').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)processFile(f);}
+  function onFileSelect(e){const f=e.target.files[0];if(f)processFile(f);}
+
+  function processFile(file){
+    if(!file.name.match(/\.xlsx?$/i)){
+      document.getElementById('errorPortfolio').textContent='Formato inválido. Use .xlsx ou .xls';
+      document.getElementById('errorPortfolio').style.display='block';return;
+    }
+    document.getElementById('errorPortfolio').style.display='none';
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const wb=XLSX.read(e.target.result,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:null});
+        if(!rows.length||!rows[0].Sigla){
+          document.getElementById('errorPortfolio').textContent='Planilha inválida. Verifique se a primeira linha tem os cabeçalhos corretos (Sigla, DY_lag1, DY_lag2, DY_lag3).';
+          document.getElementById('errorPortfolio').style.display='block';return;
+        }
+        portfolioData=rows;
+        document.getElementById('fileInfo').textContent=`✓ ${file.name} — ${rows.length} fundo(s) encontrado(s)`;
+        const btn=document.getElementById('btnPortfolio');
+        btn.disabled=false;
+        document.getElementById('btnPortfolioText').textContent=`Analisar portfólio (${rows.length} fundos)`;
+      }catch{
+        document.getElementById('errorPortfolio').textContent='Erro ao ler o arquivo. Verifique se é um Excel válido.';
+        document.getElementById('errorPortfolio').style.display='block';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  let portfolioChartInst=null;
+  async function predictPortfolio(){
+    if(!portfolioData.length)return;
+    const btn=document.getElementById('btnPortfolio');
+    const errorEl=document.getElementById('errorPortfolio');
+    btn.disabled=true;
+    document.getElementById('btnPortfolioText').textContent='Consultando API para cada fundo...';
+    document.getElementById('spinnerPortfolio').style.display='block';
+    errorEl.style.display='none';
+    document.getElementById('portfolioResults').style.display='none';
+
+    const results=[];
+    for(const row of portfolioData){
+      const sigla=String(row.Sigla||'').trim().toUpperCase();
+      const dy1=parseFloat(row.DY_lag1)||0;
+      const dy2=parseFloat(row.DY_lag2)||dy1;
+      const dy3=parseFloat(row.DY_lag3)||dy1;
+      const pvp=row.P_VP!=null?parseFloat(row.P_VP):null;
+      const vac=row.Vacancia!=null?parseFloat(row.Vacancia):null;
+      try{
+        const data=await callApi(sigla,dy1/100,dy2/100,dy3/100,pvp,vac);
+        results.push({sigla,dy_previsto:data.dy_previsto,dy1,pvp,vac});
+      }catch(err){
+        results.push({sigla,dy_previsto:null,erro:err.message,dy1,pvp,vac});
+      }
     }
 
-    btn.disabled = false;
-    btnText.textContent = 'Gerar previsão com Gradient Boosting';
-    spinner.style.display = 'none';
+    btn.disabled=false;
+    document.getElementById('btnPortfolioText').textContent=`Analisar portfólio (${portfolioData.length} fundos)`;
+    document.getElementById('spinnerPortfolio').style.display='none';
 
-    const preds = buildPredSeries(baseDY, horizonte);
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('lbl-sigla').textContent = sigla;
-    document.getElementById('lbl-seg').textContent = seg;
+    const validos=results.filter(r=>r.dy_previsto!=null).sort((a,b)=>b.dy_previsto-a.dy_previsto);
+    if(!validos.length){
+      errorEl.textContent='Nenhum fundo pôde ser processado. Verifique a API e os dados.';
+      errorEl.style.display='block';return;
+    }
 
-    const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    // const now = new Date();
-    const now = new Date(2024, 11, 1); // dezembro/2024 como referência
-    const futLabels = Array.from({length: horizonte}, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-      return months[d.getMonth()] + '/' + String(d.getFullYear()).slice(2);
-    });
+    document.getElementById('portfolioResults').style.display='block';
 
-    const showIdx = [2, Math.floor(horizonte/2), horizonte-1]
-      .filter((v,i,a) => a.indexOf(v)===i && v < horizonte);
-    const periodLabels = ['3 meses', Math.floor(horizonte/2)+' meses', horizonte+' meses'];
-
-    document.getElementById('result-cards').innerHTML = showIdx.map((idx, i) => {
-      const val = preds[idx];
-      const isTop = i === showIdx.length - 1;
-      return `<div class="result-card ${isTop?'top':''}">
-        <div class="result-label">${periodLabels[i]} · ${futLabels[idx]||''}</div>
-        <div class="result-dy ${val>0.008?'good':''}">${(val*100).toFixed(3)}<span class="result-unit">% a.m.</span></div>
-        <div class="result-class">${(val*12*100).toFixed(2)}% a.a. · ${val>0.0085?'DY alto':val>0.007?'DY moderado':'DY baixo'}</div>
-      </div>`;
-    }).join('');
-
-    const ranked = (segFiis[seg]||[])
-      .map(f => ({sigla: f, medDY: fiiBenchmarks[f]?.medDY || 0}))
-      .sort((a,b) => b.medDY - a.medDY);
-
-    document.getElementById('seg-compare').innerHTML = ranked.map((f,i) => `
-      <div class="seg-card ${i===0?'best':''}">
-        ${i===0?'<div class="seg-best-label">Melhor do segmento</div>':''}
-        <div class="seg-name">${seg}</div>
-        <div class="seg-fii">${f.sigla}</div>
-        <div class="seg-dy ${i===0?'good':''}">${(f.medDY*12*100).toFixed(2)}% a.a.</div>
-        <div class="seg-sub">mediana prevista</div>
-      </div>`).join('');
-
-    const b = fiiBenchmarks[sigla];
-    const refDY = b ? b.medDY : baseDY;
-    const histDY = Array.from({length:12}, (_,i) =>
-      +(refDY*(1+(11-i)*0.003)+(Math.random()-0.5)*0.0005).toFixed(6)
-    );
-    const histLabels = Array.from({length:12}, (_,i) => {
-      const d = new Date(now.getFullYear(), now.getMonth()-11+i, 1);
-      return months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);
-    });
-
-    const allLabels = [...histLabels, ...futLabels];
-    const histData  = [...histDY.map(v => +(v*100).toFixed(4)), null];
-    const predData  = [...Array(12).fill(null), +(histDY[11]*100).toFixed(4), ...preds.map(v => +(v*100).toFixed(4))];
-
-    if (chartInst) chartInst.destroy();
-    chartInst = new Chart(document.getElementById('mainChart').getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: allLabels,
-        datasets: [
-          {label:'Histórico (12m)', data:histData, borderColor:'#378ADD', backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3, spanGaps:false},
-          {label:'Previsão GB (API)', data:predData, borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.07)', borderWidth:2, borderDash:[5,4], pointRadius:2, tension:0.3, fill:true, spanGaps:false}
-        ]
-      },
-      options: {
-        responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{labels:{font:{size:12}}}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(3)+'% a.m.':''}`}}},
-        scales:{x:{ticks:{font:{size:10},maxRotation:45}}, y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'}}}
-      }
-    });
-
-    const importance=[{l:'DY lag 1 (mês ant.)',v:34},{l:'DY lag 2',v:21},{l:'Sigla (identidade)',v:16},{l:'DY lag 3',v:13},{l:'P/VP',v:10},{l:'Vacância',v:6}];
-    document.getElementById('imp-bars').innerHTML = importance.map(f=>`
-      <div class="imp-row">
-        <span class="imp-label">${f.l}</span>
-        <div class="imp-track"><div class="imp-fill" style="width:${f.v}%"></div></div>
-        <span class="imp-val">${f.v}%</span>
-      </div>`).join('');
-
-    const avgDY  = (preds.reduce((a,b)=>a+b,0)/preds.length*12*100).toFixed(2);
-    const trend  = preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
-    const bestFii = ranked[0];
-    const isBest  = sigla===bestFii.sigla;
-
-    document.getElementById('rec-box').innerHTML = `
-      O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong>
-      para os próximos ${horizonte} meses, com ${trend}.<br><br>
-      <div class="rec-highlight">
-        ${isBest
-          ?`O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`
-          :`O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`
-        }
+    // Resumo
+    const avgDY=validos.reduce((s,r)=>s+r.dy_previsto,0)/validos.length;
+    const maxDY=validos[0];
+    const minDY=validos[validos.length-1];
+    document.getElementById('portfolioSummary').innerHTML=`
+      <div class="summary-card highlight">
+        <div class="summary-label">Melhor fundo</div>
+        <div class="summary-val good">${maxDY.sigla}</div>
+        <div class="summary-sub">${(maxDY.dy_previsto*100).toFixed(3)}% a.m.</div>
       </div>
-      P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br>
-      Vacância de ${vac.toFixed(1)}%: ${vac<10?'nível saudável — rendimentos consistentes':'acima do ideal — risco de pressão nos rendimentos'}.<br><br>
-      <span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · API: fii-predictor.onrender.com · R²=0.705 · MAPE=8.68% · Dados: 2019–2024 · Não constitui recomendação de investimento.</span>`;
+      <div class="summary-card">
+        <div class="summary-label">DY médio previsto</div>
+        <div class="summary-val">${(avgDY*12*100).toFixed(2)}%</div>
+        <div class="summary-sub">ao ano</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Fundos analisados</div>
+        <div class="summary-val">${validos.length}</div>
+        <div class="summary-sub">de ${results.length} no arquivo</div>
+      </div>`;
 
-    document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+    // Gráfico de barras por fundo
+    const colors=validos.map(r=>r.dy_previsto>0.0085?'rgba(15,110,86,0.75)':r.dy_previsto>0.007?'rgba(24,95,165,0.65)':'rgba(136,135,128,0.5)');
+    if(portfolioChartInst)portfolioChartInst.destroy();
+    portfolioChartInst=new Chart(document.getElementById('portfolioChart').getContext('2d'),{
+      type:'bar',
+      data:{labels:validos.map(r=>r.sigla),datasets:[{label:'DY previsto (% a.a.)',data:validos.map(r=>+(r.dy_previsto*12*100).toFixed(2)),backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y.toFixed(2)}% a.a.`}}},scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(1)+'%'}}}}
+    });
+
+    // Tabela ranking
+    const tbody=document.querySelector('#portfolioTable tbody');
+    tbody.innerHTML=validos.map((r,i)=>{
+      const dyAA=(r.dy_previsto*12*100).toFixed(2);
+      const dyAM=(r.dy_previsto*100).toFixed(3);
+      const cls=r.dy_previsto>0.0085?'dy-high':r.dy_previsto>0.007?'dy-mid':'dy-low';
+      const label=r.dy_previsto>0.0085?'DY alto':r.dy_previsto>0.007?'DY moderado':'DY baixo';
+      const rankCls=i===0?'rank-1':i===1?'rank-2':'rank-3';
+      return`<tr><td><span class="rank-badge ${rankCls}">${i+1}</span></td><td><strong>${r.sigla}</strong></td><td>${dyAM}%</td><td><strong>${dyAA}%</strong></td><td><span class="dy-pill ${cls}">${label}</span></td></tr>`;
+    }).join('')+(results.filter(r=>r.dy_previsto==null).map(r=>`<tr><td>—</td><td>${r.sigla}</td><td colspan="3" style="color:var(--text3);font-size:12px">Erro: ${r.erro||'não processado'}</td></tr>`).join(''));
+
+    // Barras de distribuição
+    const maxVal=validos[0].dy_previsto;
+    document.getElementById('portfolioBars').innerHTML=validos.map(r=>`
+      <div class="progress-bar-wrap">
+        <div class="progress-label"><span>${r.sigla}</span><span>${(r.dy_previsto*100).toFixed(3)}% a.m. · ${(r.dy_previsto*12*100).toFixed(2)}% a.a.</span></div>
+        <div class="progress-track"><div class="progress-fill" style="width:${(r.dy_previsto/maxVal*100).toFixed(1)}%"></div></div>
+      </div>`).join('');
+
+    document.getElementById('portfolioResults').scrollIntoView({behavior:'smooth',block:'start'});
   }
 
   onSegChange();
