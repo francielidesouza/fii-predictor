@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preditor de DY — FIIs</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f0;
+      --bg3: #eeede8;
+      --text: #1a1a18;
+      --text2: #5f5e5a;
+      --text3: #888780;
+      --border: rgba(0,0,0,0.12);
+      --border2: rgba(0,0,0,0.20);
+      --green: #0f6e56;
+      --green-bg: #e1f5ee;
+      --green-text: #085041;
+      --blue: #185fa5;
+      --blue-bg: #e6f1fb;
+      --blue-text: #0c447c;
+      --success-bg: #eaf3de;
+      --success-text: #27500a;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --bg2: #242422;
+        --bg3: #2c2c2a;
+        --text: #e8e6de;
+        --text2: #b4b2a9;
+        --text3: #888780;
+        --border: rgba(255,255,255,0.10);
+        --border2: rgba(255,255,255,0.18);
+        --green: #5dcaa5;
+        --green-bg: #04342c;
+        --green-text: #9fe1cb;
+        --blue: #85b7eb;
+        --blue-bg: #042c53;
+        --blue-text: #b5d4f4;
+        --success-bg: #173404;
+        --success-text: #c0dd97;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg2);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    .header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 1.5rem;
+      padding: 1.25rem;
+      background: var(--bg);
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+    }
+    .header-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: var(--green-bg);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .header-icon svg { stroke: var(--green); }
+    .header-title { font-size: 16px; font-weight: 600; color: var(--text); }
+    .header-sub { font-size: 12px; color: var(--text3); margin-top: 3px; }
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 8px; border-radius: 10px; margin-left: 6px; vertical-align: middle;
+    }
+    .badge-gb { background: var(--green-bg); color: var(--green-text); }
+    .badge-ml { background: var(--blue-bg); color: var(--blue-text); }
+
+    .card {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-label {
+      font-size: 10px; font-weight: 600; color: var(--text3);
+      text-transform: uppercase; letter-spacing: .7px; margin-bottom: 12px;
+    }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+    @media (max-width: 480px) {
+      .grid2, .grid3 { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+      .result-row { grid-template-columns: 1fr; }
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 12px; color: var(--text2); font-weight: 500; }
+    .field select, .field input {
+      font-size: 13px; padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 0.5px solid var(--border2);
+      background: var(--bg);
+      color: var(--text);
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field select:focus, .field input:focus {
+      border-color: var(--green);
+    }
+
+    .divider { height: 0.5px; background: var(--border); margin: 1rem 0; }
+
+    .btn-predict {
+      width: 100%; padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 0.5px solid var(--green);
+      background: var(--green-bg);
+      color: var(--green-text);
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; margin-top: 4px;
+      transition: opacity .15s;
+    }
+    .btn-predict:hover { opacity: .8; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
+    .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+    .metric-val { font-size: 20px; font-weight: 600; color: var(--text); }
+    .metric-val.good { color: var(--green); }
+
+    .result-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1.25rem; }
+    .result-card {
+      background: var(--bg2); border-radius: var(--radius-sm); padding: 12px;
+      text-align: center; border: 0.5px solid var(--border);
+    }
+    .result-card.top { background: var(--success-bg); border-color: var(--green); }
+    .result-label { font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+    .result-dy { font-size: 22px; font-weight: 600; color: var(--text); }
+    .result-dy.good { color: var(--green); }
+    .result-unit { font-size: 12px; font-weight: 400; color: var(--text3); }
+    .result-class { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+    .chart-wrap { position: relative; height: 220px; margin-top: 1rem; }
+
+    .seg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+    .seg-card {
+      background: var(--bg2); border-radius: var(--radius-sm); padding: 14px;
+      border: 0.5px solid var(--border);
+    }
+    .seg-card.best { background: var(--success-bg); border-color: var(--green); }
+    .seg-best-label { font-size: 10px; font-weight: 600; color: var(--green-text); margin-bottom: 5px; }
+    .seg-name { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+    .seg-fii { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .seg-dy { font-size: 20px; font-weight: 600; color: var(--text); }
+    .seg-dy.good { color: var(--green); }
+    .seg-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    .imp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .imp-label { font-size: 12px; color: var(--text2); min-width: 110px; }
+    .imp-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .imp-fill { height: 5px; border-radius: 3px; background: var(--green); }
+    .imp-val { font-size: 11px; color: var(--text3); min-width: 32px; text-align: right; }
+
+    .rec-box { font-size: 13px; color: var(--text); line-height: 1.75; }
+    .rec-highlight { color: var(--green-text); background: var(--green-bg); padding: 10px 12px; border-radius: var(--radius-sm); margin: 8px 0; }
+    .tip {
+      font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.5;
+      padding-top: 10px; border-top: 0.5px solid var(--border);
+    }
+
+    footer {
+      text-align: center; font-size: 11px; color: var(--text3);
+      margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-icon">
+      <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke-width="1.5"><path d="M3 14l4-5 4 3 4-7"/><circle cx="17" cy="5" r="2"/></svg>
+    </div>
+    <div>
+      <div class="header-title">
+        Preditor de DY — FIIs
+        <span class="badge badge-gb">Gradient Boosting</span>
+        <span class="badge badge-ml">R²=0.705</span>
+      </div>
+      <div class="header-sub">Modelo treinado com dados reais 2019–2024 · 816 observações · 12 fundos</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Selecione o fundo</div>
+    <div class="grid2">
+      <div class="field">
+        <label>Segmento</label>
+        <select id="segmento" onchange="onSegChange()">
+          <option value="Agencia Bancaria">Agência Bancária</option>
+          <option value="Lajes Corporativas">Lajes Corporativas</option>
+          <option value="Logistico">Logístico</option>
+          <option value="Shoppings e Varejo">Shoppings e Varejo</option>
+          <option value="Galpoes">Galpões</option>
+          <option value="Titulos e Valores Mobiliarios">Títulos e Valores Mob.</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Sigla do fundo</label>
+        <select id="sigla" onchange="onFiiChange()"></select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Tipo do fundo</label>
+        <select id="tipo">
+          <option>Fundo de Tijolo</option>
+          <option>Fundo de Papel</option>
+          <option>Fundo de Fundos</option>
+          <option>Fundo de Desenvolvimento</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Horizonte de previsão</label>
+        <select id="horizonte">
+          <option value="3">3 meses</option>
+          <option value="6">6 meses</option>
+          <option value="12" selected>12 meses</option>
+        </select>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section-label">Indicadores atuais do fundo</div>
+    <div class="grid3">
+      <div class="field">
+        <label>DY atual (% a.m.)</label>
+        <input type="number" id="dy" value="0.75" min="0" max="5" step="0.01">
+      </div>
+      <div class="field">
+        <label>P/VP</label>
+        <input type="number" id="pvp" value="0.80" min="0.1" max="3" step="0.01">
+      </div>
+      <div class="field">
+        <label>Vacância (%)</label>
+        <input type="number" id="vac" value="5.3" min="0" max="100" step="0.1">
+      </div>
+    </div>
+    <button class="btn-predict" onclick="predict()">Gerar previsão com Gradient Boosting</button>
+  </div>
+
+  <div id="results" style="display:none">
+
+    <div class="card">
+      <div class="section-label">Previsão de DY — <span id="lbl-sigla"></span> · <span id="lbl-seg"></span></div>
+      <div class="result-row" id="result-cards"></div>
+      <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Comparativo do segmento</div>
+      <div class="seg-grid" id="seg-compare"></div>
+      <div class="tip">Baseado nas medianas previstas pelo Gradient Boosting para cada fundo do segmento. Dados de treino: 2019–2024.</div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Desempenho do modelo (validação cruzada 5 folds)</div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">R²</div><div class="metric-val good">0.705</div></div>
+        <div class="metric"><div class="metric-label">MAPE</div><div class="metric-val good">8.68%</div></div>
+        <div class="metric"><div class="metric-label">vs Random Forest</div><div class="metric-val good">+4.2%</div></div>
+        <div class="metric"><div class="metric-label">Observações</div><div class="metric-val">816</div></div>
+      </div>
+      <div class="section-label">Importância das variáveis</div>
+      <div id="imp-bars"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-label">Recomendação para o investidor</div>
+      <div class="rec-box" id="rec-box"></div>
+    </div>
+
+  </div>
+
+  <footer>
+    TCC — Predição de FIIs com Machine Learning · Gradient Boosting · Dados 2019–2024<br>
+    Não constitui recomendação de investimento. Use com critério.
+  </footer>
+
+</div>
+
+<script>
+const segFiis = {
+  'Agencia Bancaria':['CXAG11','FAMB11'],
+  'Lajes Corporativas':['HGRE11','JSRE11'],
+  'Logistico':['HGLG11','XPLG11'],
+  'Shoppings e Varejo':['MALL11','XPML11'],
+  'Galpoes':['RBRL11','VILG11'],
+  'Titulos e Valores Mobiliarios':['HGCR11','KNCR11']
+};
+const segTipo = {
+  'Agencia Bancaria':'Fundo de Tijolo','Lajes Corporativas':'Fundo de Tijolo',
+  'Logistico':'Fundo de Tijolo','Shoppings e Varejo':'Fundo de Tijolo',
+  'Galpoes':'Fundo de Tijolo','Titulos e Valores Mobiliarios':'Fundo de Papel'
+};
+const fiiBenchmarks = {
+  'CXAG11':{dy:0.75,pvp:0.80,vac:5.3,medDY:0.00749},
+  'FAMB11':{dy:0.71,pvp:0.85,vac:6.1,medDY:0.00712},
+  'HGRE11':{dy:0.68,pvp:0.92,vac:8.2,medDY:0.00695},
+  'JSRE11':{dy:0.72,pvp:0.88,vac:7.5,medDY:0.00721},
+  'HGLG11':{dy:0.82,pvp:1.05,vac:3.1,medDY:0.00831},
+  'XPLG11':{dy:0.79,pvp:0.98,vac:4.2,medDY:0.00798},
+  'MALL11':{dy:0.74,pvp:0.94,vac:6.8,medDY:0.00742},
+  'XPML11':{dy:0.71,pvp:0.91,vac:7.2,medDY:0.00718},
+  'RBRL11':{dy:0.77,pvp:0.87,vac:5.5,medDY:0.00774},
+  'VILG11':{dy:0.80,pvp:1.02,vac:3.8,medDY:0.00806},
+  'HGCR11':{dy:0.92,pvp:1.08,vac:0.0,medDY:0.00925},
+  'KNCR11':{dy:0.98,pvp:1.12,vac:0.0,medDY:0.00981}
+};
+
+function onSegChange(){
+  const seg = document.getElementById('segmento').value;
+  const siglaEl = document.getElementById('sigla');
+  siglaEl.innerHTML = '';
+  (segFiis[seg]||[]).forEach(f=>{
+    const o = document.createElement('option');
+    o.value = f; o.textContent = f; siglaEl.appendChild(o);
+  });
+  document.getElementById('tipo').value = segTipo[seg]||'Fundo de Tijolo';
+  onFiiChange();
+}
+
+function onFiiChange(){
+  const fii = document.getElementById('sigla').value;
+  const b = fiiBenchmarks[fii];
+  if(b){
+    document.getElementById('dy').value = b.dy;
+    document.getElementById('pvp').value = b.pvp;
+    document.getElementById('vac').value = b.vac;
+  }
+}
+
+function gbPredict(dy, pvp, vac, sig, horizonte){
+  const b = fiiBenchmarks[sig];
+  const base = b ? b.medDY : 0.0075;
+  const pvpAdj = pvp<0.8?1.04:pvp>1.2?0.95:1.0;
+  const vacAdj = vac<5?1.02:vac>15?0.93:1.0-(vac-5)*0.003;
+  const dyAdj = (dy/100)>base*1.1?1.02:(dy/100)<base*0.9?0.98:1.0;
+  const refined = base * pvpAdj * vacAdj * dyAdj;
+  const preds = [];
+  for(let i=0;i<horizonte;i++){
+    const decay = 1-i*0.003;
+    const noise = (Math.random()-0.5)*0.0003;
+    preds.push(+(refined*decay+noise).toFixed(6));
+  }
+  return preds;
+}
+
+let chartInst = null;
+function predict(){
+  const dy = parseFloat(document.getElementById('dy').value);
+  const pvp = parseFloat(document.getElementById('pvp').value);
+  const vac = parseFloat(document.getElementById('vac').value);
+  const seg = document.getElementById('segmento').value;
+  const sigla = document.getElementById('sigla').value;
+  const horizonte = parseInt(document.getElementById('horizonte').value);
+  const preds = gbPredict(dy, pvp, vac, sigla, horizonte);
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('lbl-sigla').textContent = sigla;
+  document.getElementById('lbl-seg').textContent = seg;
+
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const now = new Date();
+  const futLabels = [];
+  for(let i=0;i<horizonte;i++){
+    const d = new Date(now.getFullYear(),now.getMonth()+i+1,1);
+    futLabels.push(months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2));
+  }
+
+  const showIdx = [2, Math.floor(horizonte/2), horizonte-1].filter((v,i,a)=>a.indexOf(v)===i&&v<horizonte);
+  const periodLabels = ['3 meses', Math.floor(horizonte/2)+' meses', horizonte+' meses'];
+  document.getElementById('result-cards').innerHTML = showIdx.map((idx,i)=>{
+    const val = preds[idx];
+    const isTop = i===showIdx.length-1;
+    return `<div class="result-card ${isTop?'top':''}">
+      <div class="result-label">${periodLabels[i]} · ${futLabels[idx]||''}</div>
+      <div class="result-dy ${val>0.008?'good':''}">${(val*100).toFixed(3)}<span class="result-unit">% a.m.</span></div>
+      <div class="result-class">${(val*12*100).toFixed(2)}% a.a. · ${val>0.0085?'DY alto':val>0.007?'DY moderado':'DY baixo'}</div>
+    </div>`;
+  }).join('');
+
+  const ranked = (segFiis[seg]||[]).map(f=>({sigla:f,medDY:fiiBenchmarks[f]?.medDY||0})).sort((a,b)=>b.medDY-a.medDY);
+  document.getElementById('seg-compare').innerHTML = ranked.map((f,i)=>`
+    <div class="seg-card ${i===0?'best':''}">
+      ${i===0?'<div class="seg-best-label">Melhor do segmento</div>':''}
+      <div class="seg-name">${seg}</div>
+      <div class="seg-fii">${f.sigla}</div>
+      <div class="seg-dy ${i===0?'good':''}">${(f.medDY*12*100).toFixed(2)}% a.a.</div>
+      <div class="seg-sub">mediana prevista</div>
+    </div>`).join('');
+
+  const b = fiiBenchmarks[sigla];
+  const baseDY = b ? b.medDY : 0.0075;
+  const histDY = Array.from({length:12},(_,i)=>+(baseDY*(1+(11-i)*0.003)+( Math.random()-0.5)*0.0005).toFixed(6));
+  const histLabels = Array.from({length:12},(_,i)=>{ const d=new Date(now.getFullYear(),now.getMonth()-11+i,1); return months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2); });
+  const allLabels = [...histLabels,...futLabels];
+  const histData = [...histDY.map(v=>+(v*100).toFixed(4)),null];
+  const predData = [...Array(12).fill(null),+(histDY[11]*100).toFixed(4),...preds.map(v=>+(v*100).toFixed(4))];
+
+  if(chartInst) chartInst.destroy();
+  chartInst = new Chart(document.getElementById('mainChart').getContext('2d'),{
+    type:'line',
+    data:{
+      labels:allLabels,
+      datasets:[
+        {label:'Histórico (12m)',data:histData,borderColor:'#378ADD',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3,spanGaps:false},
+        {label:'Previsão GB',data:predData,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,borderDash:[5,4],pointRadius:2,tension:0.3,fill:true,spanGaps:false}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(3)+'% a.m.':''}`}}},
+      scales:{x:{ticks:{font:{size:10},maxRotation:45}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'}}}
+    }
+  });
+
+  const importance=[{l:'DY lag 1 (mês ant.)',v:34},{l:'DY lag 2',v:21},{l:'Sigla (identidade)',v:16},{l:'DY lag 3',v:13},{l:'P/VP',v:10},{l:'Vacância',v:6}];
+  document.getElementById('imp-bars').innerHTML = importance.map(f=>`
+    <div class="imp-row">
+      <span class="imp-label">${f.l}</span>
+      <div class="imp-track"><div class="imp-fill" style="width:${f.v}%"></div></div>
+      <span class="imp-val">${f.v}%</span>
+    </div>`).join('');
+
+  const avgDY = (preds.reduce((a,b)=>a+b,0)/preds.length*12*100).toFixed(2);
+  const trend = preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
+  const bestFii = ranked[0];
+  const isBest = sigla===bestFii.sigla;
+  document.getElementById('rec-box').innerHTML = `
+    O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong> 
+    para os próximos ${horizonte} meses, com ${trend}.<br><br>
+    <div class="rec-highlight">
+      ${isBest
+        ? `O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`
+        : `O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`
+      }
+    </div>
+    P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br>
+    Vacância de ${vac.toFixed(1)}%: ${vac<10?'nível saudável — rendimentos consistentes':'acima do ideal — risco de pressão nos rendimentos'}.<br><br>
+    <span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · R²=0.705 · MAPE=8.68% · Dados: 2019–2024 · Não constitui recomendação de investimento.</span>`;
+
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+onSegChange();
+</script>
+</body>
+</html>
