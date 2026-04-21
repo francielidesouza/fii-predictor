@@ -470,7 +470,8 @@
     document.getElementById('lbl-seg').textContent = seg;
 
     const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const now = new Date();
+    // const now = new Date();
+    const now = new Date(2024, 11, 1); // dezembro/2024 como referência
     const futLabels = Array.from({length: horizonte}, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
       return months[d.getMonth()] + '/' + String(d.getFullYear()).slice(2);
