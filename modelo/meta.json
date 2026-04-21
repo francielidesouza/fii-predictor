@@ -1,0 +1,19 @@
+{
+  "num_cols": [
+    "DY_lag1",
+    "DY_lag2",
+    "DY_lag3",
+    "P_VP",
+    "Vacancia"
+  ],
+  "cat_cols": [
+    "Segmento",
+    "Tipo_do_Fundo"
+  ],
+  "col_sigla": "Sigla",
+  "col_dy": "Dividendos_Yield",
+  "modelos": [
+    "Random Forest",
+    "Gradient Boosting"
+  ]
+}
