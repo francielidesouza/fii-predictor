@@ -100,7 +100,7 @@ def buscar_selic():
         return {}
     df = pd.DataFrame(data)
     df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
-    df["ano_mes"] = df["data"].dt.to_period("M").astype(str)
+    df["ano_mes"] = df["data"].str(dt.to_period("M"))
     df["SELIC"] = df["valor"].apply(lambda v: round(to_float(v) / 100, 6) if to_float(v) else None)
     print(f"   ✓ {len(df)} meses carregados")
     return dict(zip(df["ano_mes"], df["SELIC"]))
@@ -119,7 +119,7 @@ def buscar_ifix():
         return {}
     df = pd.DataFrame(data)
     df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
-    df["ano_mes"] = df["data"].dt.to_period("M").astype(str)
+    df["ano_mes"] = df["data"].str(dt.to_period("M"))
     df = df[(df["ano_mes"] >= PERIODO_INI) & (df["ano_mes"] <= PERIODO_FIM)]
     df["IFIX"] = df["valor"].apply(lambda v: round(to_float(v) / 100, 6) if to_float(v) else None)
     print(f"   ✓ {len(df)} meses carregados")
@@ -158,7 +158,7 @@ def buscar_yahoo(sigla):
         if preco is None:
             continue
         dt = pd.to_datetime(ts, unit="s")
-        mes = dt.to_period("M").astype(str)
+        mes = str(dt.to_period("M"))
         if PERIODO_INI <= mes <= PERIODO_FIM:
             cotacoes[mes] = round(float(preco), 4)
 
@@ -168,7 +168,7 @@ def buscar_yahoo(sigla):
     for ts_str, info in divs_raw.items():
         try:
             dt = pd.to_datetime(int(ts_str), unit="s")
-            mes = dt.to_period("M").astype(str)
+            mes = str(dt.to_period("M"))
             if PERIODO_INI <= mes <= PERIODO_FIM:
                 valor = float(info.get("amount", 0))
                 dividendos[mes] = dividendos.get(mes, 0) + valor
