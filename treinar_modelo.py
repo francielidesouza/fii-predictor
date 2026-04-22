@@ -79,7 +79,12 @@ def selecionar_features(df: pd.DataFrame):
 
 
 def construir_pipeline(num_cols, cat_cols, modelo):
-    transformers = [("num", "passthrough", num_cols)]
+    from sklearn.impute import SimpleImputer
+    from sklearn.pipeline import Pipeline as SKPipeline
+    num_pipe = SKPipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+    ])
+    transformers = [("num", num_pipe, num_cols)]
     if cat_cols:
         transformers.append((
             "cat",
