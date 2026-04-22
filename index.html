@@ -271,10 +271,9 @@
       </div>
       <div class="divider"></div>
       <div class="section-label">Indicadores atuais do fundo</div>
-      <div class="grid3">
+      <div class="grid2">
         <div class="field"><label>DY atual (% a.m.)</label><input type="number" id="dy" value="0.75" min="0" max="5" step="0.01"></div>
         <div class="field"><label>P/VP</label><input type="number" id="pvp" value="0.80" min="0.1" max="3" step="0.01"></div>
-        <div class="field"><label>Vacância (%)</label><input type="number" id="vac" value="5.3" min="0" max="100" step="0.1"></div>
       </div>
       <button class="btn" id="btnPredict" onclick="predictSingle()">
         <span id="btnText">Gerar previsão com Gradient Boosting</span>
@@ -449,13 +448,12 @@
   }
   function onFiiChange(){
     const b=fiiBenchmarks[document.getElementById('sigla').value];
-    if(b){document.getElementById('dy').value=b.dy;document.getElementById('pvp').value=b.pvp;document.getElementById('vac').value=b.vac;}
+    if(b){document.getElementById('dy').value=b.dy;document.getElementById('pvp').value=b.pvp;}
   }
 
-  async function callApi(sigla,dy_lag1,dy_lag2,dy_lag3,pvp,vac){
+  async function callApi(sigla,dy_lag1,dy_lag2,dy_lag3,pvp){
     const payload={sigla,dy_lag1,dy_lag2,dy_lag3,modelo:'Gradient Boosting'};
     if(pvp!=null)payload.p_vp=pvp;
-    if(vac!=null)payload.vacancia=vac;
     const res=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(60000)});
     if(!res.ok){const e=await res.json();throw new Error(e.detail||'Erro na API');}
     return res.json();
@@ -470,7 +468,6 @@
   async function predictSingle(){
     const dy=parseFloat(document.getElementById('dy').value);
     const pvp=parseFloat(document.getElementById('pvp').value);
-    const vac=parseFloat(document.getElementById('vac').value);
     const seg=document.getElementById('segmento').value;
     const sigla=document.getElementById('sigla').value;
     const horizonte=parseInt(document.getElementById('horizonte').value);
@@ -480,7 +477,7 @@
     document.getElementById('spinner').style.display='block';
     errorMsg.style.display='none';document.getElementById('results').style.display='none';
     let baseDY;
-    try{const data=await callApi(sigla,dy/100,dy/100,dy/100,pvp,vac);baseDY=data.dy_previsto;}
+    try{const data=await callApi(sigla,dy/100,dy/100,dy/100,pvp);baseDY=data.dy_previsto;}
     catch(err){
       errorMsg.textContent=err.message.includes('timeout')?'A API demorou. Aguarde 30s e tente novamente.':'Erro: '+err.message;
       errorMsg.style.display='block';btn.disabled=false;
@@ -515,7 +512,7 @@
     const avgDY=(preds.reduce((a,b)=>a+b,0)/preds.length*12*100).toFixed(2);
     const trend=preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
     const bestFii=ranked[0];const isBest=sigla===bestFii.sigla;
-    document.getElementById('rec-box').innerHTML=`O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong> para os próximos ${horizonte} meses, com ${trend}.<br><br><div class="rec-highlight">${isBest?`O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`:`O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`}</div>P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br>Vacância de ${vac.toFixed(1)}%: ${vac<10?'nível saudável — rendimentos consistentes':'acima do ideal — risco de pressão nos rendimentos'}.<br><br><span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · R²=0.705 · MAPE=8.68% · Não constitui recomendação de investimento.</span>`;
+    document.getElementById('rec-box').innerHTML=`O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong> para os próximos ${horizonte} meses, com ${trend}.<br><br><div class="rec-highlight">${isBest?`O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`:`O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`}</div>P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br><br><span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · R²=0.705 · MAPE=8.68% · Não constitui recomendação de investimento.</span>`;
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
   }
 
@@ -612,12 +609,11 @@
       const lag2=parseNum(rows[1]['Dividendos_Yield']||rows[1]['DY_lag2']);
       const lag3=parseNum(rows[0]['Dividendos_Yield']||rows[0]['DY_lag3']);
       const pvp=parseNum(rows[2]['P_VP']||rows[2]['p_vp']);
-      const vac=parseNum(rows[2]['Vacancia']||rows[2]['vacancia']);
-      const hist=[lag3,lag2,lag1];  // cronológico: out, nov, dez
+      const hist=[lag3,lag2,lag1];
       try{
-        const data=await callApi(sigla,lag1,lag2,lag3,pvp,vac);
+        const data=await callApi(sigla,lag1,lag2,lag3,pvp);
         const preds12=buildSeries(data.dy_previsto,12);
-        fundResults.push({sigla,color:FUND_COLORS[i%FUND_COLORS.length],hist,preds12,pvp,vac,ok:true});
+        fundResults.push({sigla,color:FUND_COLORS[i%FUND_COLORS.length],hist,preds12,pvp,ok:true});
       }catch(err){
         fundResults.push({sigla,color:FUND_COLORS[i%FUND_COLORS.length],hist,preds12:null,ok:false,erro:err.message});
       }
