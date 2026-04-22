@@ -4,7 +4,7 @@ montar_dataset.py
 Monta dataset profissional de FIIs (jan/2019 – dez/2024).
 
 Fontes (todas gratuitas, sem autenticação):
-  - Dividendos + Cotação → Yahoo Finance (query1.finance.yahoo.com)
+  - Dividendos + Cotação → Yahoo Finance
   - SELIC mensal         → Banco Central do Brasil API SGS série 4390
   - IFIX mensal          → Banco Central do Brasil API SGS série 12466
 
@@ -23,9 +23,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Lista de FIIs por segmento
-# ─────────────────────────────────────────────────────────────────────────────
 FIIS = [
     {"sigla": "BBAM11", "segmento": "Agencia Bancaria",              "tipo": "Fundo de Tijolo"},
     {"sigla": "CXAG11", "segmento": "Agencia Bancaria",              "tipo": "Fundo de Tijolo"},
@@ -56,14 +53,12 @@ FIIS = [
 ]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 def safe_get(url, params=None):
     try:
         r = requests.get(url, params=params, headers=HEADERS, timeout=20)
         if r.status_code != 200:
             return None
+        r.json()
         return r
     except Exception:
         return None
@@ -87,8 +82,19 @@ def to_float(val):
         return None
 
 
+def ts_to_anomes(ts):
+    """Converte timestamp Unix para string 'YYYY-MM'."""
+    dt = pd.to_datetime(int(ts), unit="s")
+    return str(dt.to_period("M"))
+
+
+def dt_to_anomes(dt):
+    """Converte datetime para string 'YYYY-MM'."""
+    return str(pd.to_datetime(dt).to_period("M"))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. SELIC — BCB série 4390 (% a.m.)
+# 1. SELIC — BCB série 4390
 # ─────────────────────────────────────────────────────────────────────────────
 def buscar_selic():
     print("📡 Buscando SELIC mensal do BCB (série 4390)...")
@@ -98,12 +104,18 @@ def buscar_selic():
     if not data:
         print("   ⚠ Falha. Preenchendo SELIC com NaN.")
         return {}
-    df = pd.DataFrame(data)
-    df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
-    df["ano_mes"] = df["data"].str(dt.to_period("M"))
-    df["SELIC"] = df["valor"].apply(lambda v: round(to_float(v) / 100, 6) if to_float(v) else None)
-    print(f"   ✓ {len(df)} meses carregados")
-    return dict(zip(df["ano_mes"], df["SELIC"]))
+    resultado = {}
+    for item in data:
+        try:
+            dt = pd.to_datetime(item["data"], format="%d/%m/%Y")
+            mes = str(dt.to_period("M"))
+            val = to_float(item["valor"])
+            if val is not None:
+                resultado[mes] = round(val / 100, 6)
+        except Exception:
+            continue
+    print(f"   ✓ {len(resultado)} meses carregados")
+    return resultado
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -117,58 +129,57 @@ def buscar_ifix():
     if not data:
         print("   ⚠ Falha. Preenchendo IFIX com NaN.")
         return {}
-    df = pd.DataFrame(data)
-    df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
-    df["ano_mes"] = df["data"].str(dt.to_period("M"))
-    df = df[(df["ano_mes"] >= PERIODO_INI) & (df["ano_mes"] <= PERIODO_FIM)]
-    df["IFIX"] = df["valor"].apply(lambda v: round(to_float(v) / 100, 6) if to_float(v) else None)
-    print(f"   ✓ {len(df)} meses carregados")
-    return dict(zip(df["ano_mes"], df["IFIX"]))
+    resultado = {}
+    for item in data:
+        try:
+            dt = pd.to_datetime(item["data"], format="%d/%m/%Y")
+            mes = str(dt.to_period("M"))
+            if PERIODO_INI <= mes <= PERIODO_FIM:
+                val = to_float(item["valor"])
+                if val is not None:
+                    resultado[mes] = round(val / 100, 6)
+        except Exception:
+            continue
+    print(f"   ✓ {len(resultado)} meses carregados")
+    return resultado
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. Yahoo Finance — cotação mensal + dividendos
 # ─────────────────────────────────────────────────────────────────────────────
 def buscar_yahoo(sigla):
-    """
-    Retorna:
-      cotacoes  = {ano_mes: preco_fechamento}
-      dividendos = {ano_mes: valor_total_dividendos}
-      pvp_proxy  = None (Yahoo não fornece P/VP)
-    """
     ticker = f"{sigla}.SA"
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
     r = safe_get(url, params={"interval": "1mo", "range": "7y", "events": "dividends"})
     data = safe_json(r)
-
     if not data:
-        return {}, {}, None
+        return {}, {}
 
     try:
         result = data["chart"]["result"][0]
     except (KeyError, IndexError, TypeError):
-        return {}, {}, None
+        return {}, {}
 
-    # ── Cotações mensais ──────────────────────────────────────────────────────
+    # Cotações mensais
     timestamps = result.get("timestamp", [])
     closes = result.get("indicators", {}).get("adjclose", [{}])[0].get("adjclose", [])
-
     cotacoes = {}
     for ts, preco in zip(timestamps, closes):
         if preco is None:
             continue
-        dt = pd.to_datetime(ts, unit="s")
-        mes = str(dt.to_period("M"))
-        if PERIODO_INI <= mes <= PERIODO_FIM:
-            cotacoes[mes] = round(float(preco), 4)
+        try:
+            mes = ts_to_anomes(ts)
+            if PERIODO_INI <= mes <= PERIODO_FIM:
+                cotacoes[mes] = round(float(preco), 4)
+        except Exception:
+            continue
 
-    # ── Dividendos ────────────────────────────────────────────────────────────
+    # Dividendos
     divs_raw = result.get("events", {}).get("dividends", {})
     dividendos = {}
     for ts_str, info in divs_raw.items():
         try:
-            dt = pd.to_datetime(int(ts_str), unit="s")
-            mes = str(dt.to_period("M"))
+            mes = ts_to_anomes(ts_str)
             if PERIODO_INI <= mes <= PERIODO_FIM:
                 valor = float(info.get("amount", 0))
                 dividendos[mes] = dividendos.get(mes, 0) + valor
@@ -179,26 +190,24 @@ def buscar_yahoo(sigla):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. P/VP — estimado via Yahoo (bookValue)
+# 4. P/VP — Yahoo Finance quoteSummary
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_pvp_yahoo(sigla):
-    """P/VP estimado: cotação atual / valor patrimonial via Yahoo summary."""
+def buscar_pvp(sigla):
     ticker = f"{sigla}.SA"
     url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ticker}"
-    r = safe_get(url, params={"modules": "defaultKeyStatistics,summaryDetail"})
+    r = safe_get(url, params={"modules": "defaultKeyStatistics"})
     data = safe_json(r)
     if not data:
         return None
     try:
-        stats = data["quoteSummary"]["result"][0]
-        pvp = stats.get("defaultKeyStatistics", {}).get("priceToBook", {}).get("raw")
-        return round(float(pvp), 4) if pvp else None
+        pvp = data["quoteSummary"]["result"][0]["defaultKeyStatistics"]["priceToBook"]["raw"]
+        return round(float(pvp), 4)
     except Exception:
         return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. Montar dataset completo
+# 5. Montar dataset
 # ─────────────────────────────────────────────────────────────────────────────
 def montar_dataset():
     meses = [str(m) for m in pd.period_range(PERIODO_INI, PERIODO_FIM, freq="M")]
@@ -215,10 +224,9 @@ def montar_dataset():
         tipo     = fii["tipo"]
         print(f"\n🔍 {sigla} ({segmento})...", end=" ", flush=True)
 
-        cotacoes, dividendos = buscar_yahoo(sigla)[:2]
+        cotacoes, dividendos = buscar_yahoo(sigla)
         time.sleep(0.5)
-
-        pvp = buscar_pvp_yahoo(sigla)
+        pvp = buscar_pvp(sigla)
         time.sleep(0.3)
 
         meses_com_dy = 0
@@ -234,7 +242,7 @@ def montar_dataset():
                 "Tipo_do_Fundo":    tipo,
                 "Dividendos_Yield": dy,
                 "P_VP":             pvp,
-                "Vacancia":         None,   # não disponível gratuitamente
+                "Vacancia":         None,
                 "SELIC":            selic.get(mes),
                 "IFIX":             ifix.get(mes),
             })
@@ -257,7 +265,7 @@ def montar_dataset():
             print(f"   {r['sigla']}: {r['meses_com_dy']} meses")
 
     print("\nDistribuição por segmento:")
-    print(df_completo.groupby("Segmento")[["Sigla"]].nunique().to_string())
+    print(df_completo.groupby("Segmento")["Sigla"].nunique().to_string())
 
     nome = "dataset_fiis_2019_2024.xlsx"
     df_completo.to_excel(nome, index=False)
