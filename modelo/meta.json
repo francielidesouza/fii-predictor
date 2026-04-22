@@ -3,8 +3,8 @@
     "DY_lag1",
     "DY_lag2",
     "DY_lag3",
-    "P_VP",
-    "Vacancia"
+    "SELIC",
+    "IFIX"
   ],
   "cat_cols": [
     "Segmento",
