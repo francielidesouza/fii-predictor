@@ -3,29 +3,28 @@ montar_dataset.py
 ─────────────────
 Monta dataset profissional de FIIs (jan/2019 – dez/2024).
 
-Fontes:
-  - SELIC  → Banco Central do Brasil API SGS série 4390 (sem autenticação)
-  - IFIX   → Banco Central do Brasil API SGS série 12466 (sem autenticação)
-  - FIIs   → brapi.dev (token via .env)
+Fontes (todas gratuitas, sem autenticação):
+  - Dividendos + Cotação → Yahoo Finance (query1.finance.yahoo.com)
+  - SELIC mensal         → Banco Central do Brasil API SGS série 4390
+  - IFIX mensal          → Banco Central do Brasil API SGS série 12466
 
 Instalação:
-    pip install requests pandas openpyxl python-dotenv
+    pip install requests pandas openpyxl
 """
 
-import os
-import time
 import requests
 import pandas as pd
-from dotenv import load_dotenv
-
-load_dotenv()
-BRAPI_TOKEN = os.getenv("BRAPI_TOKEN")
+import time
 
 PERIODO_INI = "2019-01"
 PERIODO_FIM = "2024-12"
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Lista de FIIs
+# Lista de FIIs por segmento
 # ─────────────────────────────────────────────────────────────────────────────
 FIIS = [
     {"sigla": "BBAM11", "segmento": "Agencia Bancaria",              "tipo": "Fundo de Tijolo"},
@@ -60,21 +59,17 @@ FIIS = [
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
-def safe_get(url, params=None, timeout=30):
-    """GET com tratamento de erro — retorna None se falhar."""
+def safe_get(url, params=None):
     try:
-        r = requests.get(url, params=params, timeout=timeout)
+        r = requests.get(url, params=params, headers=HEADERS, timeout=20)
         if r.status_code != 200:
             return None
-        # Testa se é JSON válido antes de retornar
-        r.json()
         return r
     except Exception:
         return None
 
 
 def safe_json(r):
-    """Extrai JSON de forma segura."""
     if r is None:
         return None
     try:
@@ -101,7 +96,7 @@ def buscar_selic():
     r = safe_get(url, params={"formato": "json", "dataInicial": "01/01/2019", "dataFinal": "31/12/2024"})
     data = safe_json(r)
     if not data:
-        print("   ⚠ Falha ao buscar SELIC. Preenchendo com NaN.")
+        print("   ⚠ Falha. Preenchendo SELIC com NaN.")
         return {}
     df = pd.DataFrame(data)
     df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
@@ -112,7 +107,7 @@ def buscar_selic():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. IFIX — BCB série 12466 (variação mensal do índice IFIX)
+# 2. IFIX — BCB série 12466
 # ─────────────────────────────────────────────────────────────────────────────
 def buscar_ifix():
     print("📡 Buscando IFIX mensal do BCB (série 12466)...")
@@ -120,13 +115,7 @@ def buscar_ifix():
     r = safe_get(url, params={"formato": "json", "dataInicial": "01/01/2019", "dataFinal": "31/12/2024"})
     data = safe_json(r)
     if not data:
-        print("   ⚠ Série 12466 não disponível. Tentando série alternativa 12469...")
-        # Série alternativa: IFIX - índice de fundos imobiliários
-        url2 = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12469/dados"
-        r2 = safe_get(url2, params={"formato": "json", "dataInicial": "01/01/2019", "dataFinal": "31/12/2024"})
-        data = safe_json(r2)
-    if not data:
-        print("   ⚠ IFIX não disponível via BCB. Preenchendo com NaN.")
+        print("   ⚠ Falha. Preenchendo IFIX com NaN.")
         return {}
     df = pd.DataFrame(data)
     df["data"] = pd.to_datetime(df["data"], format="%d/%m/%Y")
@@ -138,87 +127,80 @@ def buscar_ifix():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. Cotação histórica mensal — brapi.dev
+# 3. Yahoo Finance — cotação mensal + dividendos
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_cotacao(sigla):
-    url = f"https://brapi.dev/api/quote/{sigla}"
-    r = safe_get(url, params={"range": "6y", "interval": "1mo", "token": BRAPI_TOKEN})
+def buscar_yahoo(sigla):
+    """
+    Retorna:
+      cotacoes  = {ano_mes: preco_fechamento}
+      dividendos = {ano_mes: valor_total_dividendos}
+      pvp_proxy  = None (Yahoo não fornece P/VP)
+    """
+    ticker = f"{sigla}.SA"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+    r = safe_get(url, params={"interval": "1mo", "range": "7y", "events": "dividends"})
     data = safe_json(r)
+
     if not data:
-        return {}
-    hist = data.get("results", [{}])[0].get("historicalDataPrice", [])
-    result = {}
-    for h in hist:
+        return {}, {}, None
+
+    try:
+        result = data["chart"]["result"][0]
+    except (KeyError, IndexError, TypeError):
+        return {}, {}, None
+
+    # ── Cotações mensais ──────────────────────────────────────────────────────
+    timestamps = result.get("timestamp", [])
+    closes = result.get("indicators", {}).get("adjclose", [{}])[0].get("adjclose", [])
+
+    cotacoes = {}
+    for ts, preco in zip(timestamps, closes):
+        if preco is None:
+            continue
+        dt = pd.to_datetime(ts, unit="s")
+        mes = dt.to_period("M").astype(str)
+        if PERIODO_INI <= mes <= PERIODO_FIM:
+            cotacoes[mes] = round(float(preco), 4)
+
+    # ── Dividendos ────────────────────────────────────────────────────────────
+    divs_raw = result.get("events", {}).get("dividends", {})
+    dividendos = {}
+    for ts_str, info in divs_raw.items():
         try:
-            dt = pd.to_datetime(h["date"], unit="s")
+            dt = pd.to_datetime(int(ts_str), unit="s")
             mes = dt.to_period("M").astype(str)
             if PERIODO_INI <= mes <= PERIODO_FIM:
-                result[mes] = to_float(h.get("close"))
+                valor = float(info.get("amount", 0))
+                dividendos[mes] = dividendos.get(mes, 0) + valor
         except Exception:
             continue
-    return result
+
+    return cotacoes, dividendos
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Dividendos históricos — brapi.dev
+# 4. P/VP — estimado via Yahoo (bookValue)
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_dividendos(sigla):
-    url = f"https://brapi.dev/api/funds/{sigla}"
-    r = safe_get(url, params={"token": BRAPI_TOKEN})
+def buscar_pvp_yahoo(sigla):
+    """P/VP estimado: cotação atual / valor patrimonial via Yahoo summary."""
+    ticker = f"{sigla}.SA"
+    url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ticker}"
+    r = safe_get(url, params={"modules": "defaultKeyStatistics,summaryDetail"})
     data = safe_json(r)
     if not data:
-        return {}
-    results = data.get("results", [])
-    if not results:
-        return {}
-    divs = results[0].get("dividendsData", {}).get("cashDividends", [])
-    por_mes = {}
-    for d in divs:
-        try:
-            dt = pd.to_datetime(
-                d.get("paymentDate") or d.get("lastDatePrior"), errors="coerce"
-            )
-            if pd.isna(dt):
-                continue
-            mes = dt.to_period("M").astype(str)
-            if PERIODO_INI <= mes <= PERIODO_FIM:
-                val = to_float(d.get("rate", 0)) or 0
-                por_mes[mes] = por_mes.get(mes, 0) + val
-        except Exception:
-            continue
-    return por_mes
+        return None
+    try:
+        stats = data["quoteSummary"]["result"][0]
+        pvp = stats.get("defaultKeyStatistics", {}).get("priceToBook", {}).get("raw")
+        return round(float(pvp), 4) if pvp else None
+    except Exception:
+        return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. P/VP e Vacância — brapi.dev (valor atual como proxy histórico)
-# ─────────────────────────────────────────────────────────────────────────────
-def buscar_indicadores(sigla):
-    url = f"https://brapi.dev/api/funds/{sigla}"
-    r = safe_get(url, params={"token": BRAPI_TOKEN})
-    data = safe_json(r)
-    if not data:
-        return None, None
-    results = data.get("results", [])
-    if not results:
-        return None, None
-    f = results[0]
-    pvp = to_float(f.get("priceToBook") or f.get("pvp"))
-    vac = to_float(f.get("physicalVacancy") or f.get("financialVacancy"))
-    if pvp:
-        pvp = round(pvp, 4)
-    if vac:
-        vac = round(vac / 100, 4)
-    return pvp, vac
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. Montar dataset completo
+# 5. Montar dataset completo
 # ─────────────────────────────────────────────────────────────────────────────
 def montar_dataset():
-    if not BRAPI_TOKEN:
-        print("⚠ BRAPI_TOKEN não encontrado no .env. Adicione: BRAPI_TOKEN=seu_token")
-        return
-
     meses = [str(m) for m in pd.period_range(PERIODO_INI, PERIODO_FIM, freq="M")]
 
     selic = buscar_selic()
@@ -233,9 +215,11 @@ def montar_dataset():
         tipo     = fii["tipo"]
         print(f"\n🔍 {sigla} ({segmento})...", end=" ", flush=True)
 
-        cotacoes  = buscar_cotacao(sigla);   time.sleep(0.4)
-        dividendos= buscar_dividendos(sigla); time.sleep(0.4)
-        pvp, vac  = buscar_indicadores(sigla); time.sleep(0.4)
+        cotacoes, dividendos = buscar_yahoo(sigla)[:2]
+        time.sleep(0.5)
+
+        pvp = buscar_pvp_yahoo(sigla)
+        time.sleep(0.3)
 
         meses_com_dy = 0
         for mes in meses:
@@ -250,7 +234,7 @@ def montar_dataset():
                 "Tipo_do_Fundo":    tipo,
                 "Dividendos_Yield": dy,
                 "P_VP":             pvp,
-                "Vacancia":         vac,
+                "Vacancia":         None,   # não disponível gratuitamente
                 "SELIC":            selic.get(mes),
                 "IFIX":             ifix.get(mes),
             })
@@ -266,17 +250,19 @@ def montar_dataset():
 
     print(f"\n{'─'*50}")
     print(f"📊 Dataset final: {len(df_completo)} linhas · {df_completo['Sigla'].nunique()} fundos")
-    print("\nFundos com menos de 12 meses de dados (podem ter iniciado após 2019):")
+
+    print("\nFundos com menos de 12 meses de dados:")
     for r in resumo:
         if r["meses_com_dy"] < 12:
             print(f"   {r['sigla']}: {r['meses_com_dy']} meses")
 
     print("\nDistribuição por segmento:")
-    print(df_completo.groupby("Segmento")["Sigla"].nunique().to_string())
+    print(df_completo.groupby("Segmento")[["Sigla"]].nunique().to_string())
 
     nome = "dataset_fiis_2019_2024.xlsx"
     df_completo.to_excel(nome, index=False)
     print(f"\n✅ Arquivo salvo: {nome}")
+
     print("\nAmostra (5 linhas):")
     print(df_completo.head(5).to_string(index=False))
 
