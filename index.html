@@ -28,7 +28,7 @@
       }
     }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); min-height: 100vh; padding: 2rem 1rem; }
-    .container { max-width: 720px; margin: 0 auto; }
+    .container { max-width: 760px; margin: 0 auto; }
 
     .header { display: flex; align-items: center; gap: 14px; margin-bottom: 1rem; padding: 1.25rem; background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); }
     .header-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--green-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -44,7 +44,6 @@
     .api-dot.online { background: var(--green); }
     .api-dot.offline { background: #c0392b; }
 
-    /* Abas */
     .tabs { display: flex; gap: 4px; margin-bottom: 1rem; background: var(--bg); border-radius: var(--radius-sm); padding: 4px; border: 0.5px solid var(--border); }
     .tab { flex: 1; padding: 9px 12px; border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--text3); cursor: pointer; transition: background .15s, color .15s; }
     .tab.active { background: var(--green-bg); color: var(--green-text); }
@@ -55,7 +54,7 @@
     .section-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 12px; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-    @media (max-width: 480px) { .grid2, .grid3 { grid-template-columns: 1fr; } .metric-grid { grid-template-columns: 1fr 1fr; } .result-row { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { .grid2, .grid3 { grid-template-columns: 1fr; } .summary-grid { grid-template-columns: 1fr 1fr !important; } }
     .field { display: flex; flex-direction: column; gap: 5px; }
     .field label { font-size: 12px; color: var(--text2); font-weight: 500; }
     .field select, .field input { font-size: 13px; padding: 8px 10px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); width: 100%; outline: none; transition: border-color .15s; }
@@ -65,24 +64,21 @@
     .btn { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 0.5px solid var(--green); background: var(--green-bg); color: var(--green-text); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: opacity .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn:hover { opacity: .8; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-secondary { background: var(--bg2); border-color: var(--border2); color: var(--text2); }
-
     .spinner { display: none; width: 14px; height: 14px; border: 2px solid var(--green-text); border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
     .error-msg { display: none; margin-top: 10px; padding: 10px 12px; background: #fdf0ee; border: 0.5px solid #e8c4bf; border-radius: var(--radius-sm); font-size: 12px; color: #c0392b; line-height: 1.5; }
 
     /* Resultados fundo único */
     .metric-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
     .metric { background: var(--bg2); border-radius: var(--radius-sm); padding: 10px 12px; }
     .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
-    .metric-val { font-size: 20px; font-weight: 600; color: var(--text); }
+    .metric-val { font-size: 20px; font-weight: 600; }
     .metric-val.good { color: var(--green); }
     .result-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1.25rem; }
     .result-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px; text-align: center; border: 0.5px solid var(--border); }
     .result-card.top { background: var(--success-bg); border-color: var(--green); }
     .result-label { font-size: 11px; color: var(--text3); margin-bottom: 5px; }
-    .result-dy { font-size: 22px; font-weight: 600; color: var(--text); }
+    .result-dy { font-size: 22px; font-weight: 600; }
     .result-dy.good { color: var(--green); }
     .result-unit { font-size: 12px; font-weight: 400; color: var(--text3); }
     .result-class { font-size: 11px; color: var(--text3); margin-top: 3px; }
@@ -92,8 +88,8 @@
     .seg-card.best { background: var(--success-bg); border-color: var(--green); }
     .seg-best-label { font-size: 10px; font-weight: 600; color: var(--green-text); margin-bottom: 5px; }
     .seg-name { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
-    .seg-fii { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-    .seg-dy { font-size: 20px; font-weight: 600; color: var(--text); }
+    .seg-fii { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .seg-dy { font-size: 20px; font-weight: 600; }
     .seg-dy.good { color: var(--green); }
     .seg-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
     .imp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
@@ -101,56 +97,75 @@
     .imp-track { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
     .imp-fill { height: 5px; border-radius: 3px; background: var(--green); }
     .imp-val { font-size: 11px; color: var(--text3); min-width: 32px; text-align: right; }
-    .rec-box { font-size: 13px; color: var(--text); line-height: 1.75; }
+    .rec-box { font-size: 13px; line-height: 1.75; }
     .rec-highlight { color: var(--green-text); background: var(--green-bg); padding: 10px 12px; border-radius: var(--radius-sm); margin: 8px 0; }
     .tip { font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.5; padding-top: 10px; border-top: 0.5px solid var(--border); }
 
-    /* Upload portfólio */
+    /* Upload */
     .upload-area { border: 1.5px dashed var(--border2); border-radius: var(--radius-sm); padding: 2rem; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; margin-bottom: 1rem; }
     .upload-area:hover, .upload-area.drag { border-color: var(--green); background: var(--green-bg); }
     .upload-icon { font-size: 32px; margin-bottom: 8px; }
-    .upload-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .upload-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
     .upload-sub { font-size: 12px; color: var(--text3); }
     .upload-file-info { font-size: 12px; color: var(--green-text); margin-top: 8px; font-weight: 500; }
-
     .template-box { background: var(--amber-bg); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 1rem; }
     .template-title { font-size: 12px; font-weight: 600; color: var(--amber-text); margin-bottom: 6px; }
     .template-table { width: 100%; border-collapse: collapse; font-size: 11px; }
     .template-table th { text-align: left; color: var(--amber-text); padding: 3px 8px; font-weight: 600; }
     .template-table td { color: var(--text2); padding: 3px 8px; font-family: monospace; }
 
-    /* Resultados portfólio */
-    .portfolio-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 1rem; }
+    /* Portfólio resultados */
+    .summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1rem; }
     .summary-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px; text-align: center; border: 0.5px solid var(--border); }
     .summary-card.highlight { background: var(--success-bg); border-color: var(--green); }
     .summary-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
-    .summary-val { font-size: 22px; font-weight: 600; color: var(--text); }
+    .summary-val { font-size: 20px; font-weight: 600; }
     .summary-val.good { color: var(--green); }
     .summary-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
-    .portfolio-chart-wrap { position: relative; height: 260px; margin-bottom: 1.5rem; }
+    /* Gráfico de linha do portfólio */
+    .portfolio-chart-wrap { position: relative; height: 300px; margin-bottom: 0.5rem; }
 
-    /* Tabela de resultados */
+    /* Horizonte tabs */
+    .horizon-tabs { display: flex; gap: 6px; margin-bottom: 1rem; }
+    .horizon-tab { padding: 6px 14px; border-radius: 20px; border: 0.5px solid var(--border2); background: var(--bg2); font-size: 12px; font-weight: 500; color: var(--text3); cursor: pointer; transition: all .15s; }
+    .horizon-tab.active { background: var(--green-bg); color: var(--green-text); border-color: var(--green); }
+
+    /* Tabela ranking */
     .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .result-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
-    .result-table td { padding: 10px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+    .result-table td { padding: 10px 10px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
     .result-table tr:last-child td { border-bottom: none; }
     .result-table tr:hover td { background: var(--bg2); }
     .rank-badge { display: inline-block; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 600; text-align: center; line-height: 22px; }
     .rank-1 { background: #faeeda; color: #633806; }
     .rank-2 { background: var(--bg3); color: var(--text2); }
-    .rank-3 { background: var(--bg3); color: var(--text2); }
+    .rank-other { background: var(--bg3); color: var(--text3); }
     .dy-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
     .dy-high { background: var(--success-bg); color: var(--green-text); }
     .dy-mid { background: var(--blue-bg); color: var(--blue-text); }
     .dy-low { background: var(--bg3); color: var(--text3); }
-
-    .progress-bar-wrap { margin-bottom: 6px; }
-    .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 3px; }
-    .progress-track { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 5px; border-radius: 3px; background: var(--green); transition: width .4s; }
+    .fundo-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
 
     footer { text-align: center; font-size: 11px; color: var(--text3); margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--border); }
+
+    .model-info-card { padding: 1rem 1.25rem; }
+    .model-info-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .model-info-icon { width: 28px; height: 28px; border-radius: 6px; background: var(--blue-bg); color: var(--blue-text); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 520px) { .info-grid { grid-template-columns: 1fr; } }
+    .info-block { border-radius: var(--radius-sm); padding: 12px 14px; }
+    .info-block-green { background: var(--green-bg); }
+    .info-block-amber { background: var(--amber-bg); }
+    .info-block-blue { background: var(--blue-bg); }
+    .info-block-gray { background: var(--bg3); }
+    .info-block-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; color: var(--text2); }
+    .info-block-green .info-block-title { color: var(--green-text); }
+    .info-block-amber .info-block-title { color: var(--amber-text); }
+    .info-block-blue .info-block-title { color: var(--blue-text); }
+    .info-block-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+    .info-list { font-size: 12px; color: var(--text2); line-height: 1.7; padding-left: 1rem; }
+    .info-list li { margin-bottom: 3px; }
   </style>
 </head>
 <body>
@@ -171,10 +186,62 @@
     <span id="apiStatus">Verificando API...</span>
   </div>
 
-  <!-- Abas -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('manual')">Fundo individual</button>
     <button class="tab" onclick="switchTab('portfolio')">Meu portfólio (Excel)</button>
+  </div>
+
+  <!-- Card fixo: sobre o modelo -->
+  <div class="card model-info-card">
+    <div class="model-info-header" onclick="toggleModelInfo()">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="model-info-icon">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="8"/><line x1="10" y1="9" x2="10" y2="14"/><circle cx="10" cy="6.5" r="0.8" fill="currentColor"/></svg>
+        </div>
+        <span class="section-label" style="margin:0">Sobre o modelo e limitações</span>
+      </div>
+      <span id="modelInfoChevron" style="font-size:12px;color:var(--text3);transition:transform .2s">▼</span>
+    </div>
+
+    <div id="modelInfoBody" style="display:none;margin-top:1rem;">
+      <div class="info-grid">
+
+        <div class="info-block info-block-green">
+          <div class="info-block-title">Como o modelo funciona</div>
+          <div class="info-block-text">
+            Utiliza <strong>Gradient Boosting</strong> (R²=0.705, MAPE=8.68%) treinado com dados de 12 fundos entre 2019 e 2024. A previsão é baseada nos 3 meses mais recentes de Dividend Yield de cada fundo (DY lag 1, 2 e 3), além de P/VP e vacância quando disponíveis.
+          </div>
+        </div>
+
+        <div class="info-block info-block-amber">
+          <div class="info-block-title">Limitações importantes</div>
+          <ul class="info-list">
+            <li><strong>Apenas 3 meses de histórico</strong> por fundo — o modelo não enxerga sazonalidade anual nem ciclos de longo prazo.</li>
+            <li><strong>12 fundos no treino</strong> — fundos fora desta base podem ter previsões menos precisas.</li>
+            <li><strong>Sem dados macroeconômicos</strong> — Selic, IPCA e liquidez do mercado não estão incluídos.</li>
+            <li><strong>Previsões longas têm mais incerteza</strong> — horizontes de 6 e 12 meses devem ser interpretados com cautela.</li>
+          </ul>
+        </div>
+
+        <div class="info-block info-block-blue">
+          <div class="info-block-title">Como melhorar a precisão</div>
+          <ul class="info-list">
+            <li>Fornecer <strong>6 ou 12 meses</strong> de histórico por fundo (lags mais longos capturam sazonalidade).</li>
+            <li>Incluir <strong>mais fundos</strong> no dataset de treino (50–100 fundos aumentam a generalização).</li>
+            <li>Adicionar <strong>variáveis macroeconômicas</strong> como taxa Selic e IPCA mensal.</li>
+            <li>Reprocessar o <strong>dataset com dados mais recentes</strong> (2025 em diante) periodicamente.</li>
+          </ul>
+        </div>
+
+        <div class="info-block info-block-gray">
+          <div class="info-block-title">Aviso legal</div>
+          <div class="info-block-text">
+            Esta ferramenta foi desenvolvida como trabalho acadêmico (TCC) e tem fins <strong>exclusivamente educacionais</strong>. As previsões geradas <strong>não constituem recomendação de investimento</strong>. Rentabilidade passada não garante resultados futuros. Consulte um assessor de investimentos antes de tomar decisões financeiras.
+          </div>
+        </div>
+
+      </div>
+    </div>
   </div>
 
   <!-- ABA 1: Fundo individual -->
@@ -247,21 +314,20 @@
 
   <!-- ABA 2: Portfólio -->
   <div id="tab-portfolio" class="tab-panel">
-
     <div class="card">
-      <div class="section-label">Modelo de planilha esperado</div>
+      <div class="section-label">Formato esperado da planilha</div>
       <div class="template-box">
-        <div class="template-title">Seu Excel deve ter estas colunas (primeira linha = cabeçalho):</div>
+        <div class="template-title">Seu Excel deve ter estas colunas (uma linha por mês por fundo):</div>
         <table class="template-table">
-          <tr><th>Sigla</th><th>DY_lag1</th><th>DY_lag2</th><th>DY_lag3</th><th>P_VP</th><th>Vacancia</th></tr>
-          <tr><td>HGLG11</td><td>0.82</td><td>0.80</td><td>0.79</td><td>1.05</td><td>3.1</td></tr>
-          <tr><td>KNCR11</td><td>0.98</td><td>0.95</td><td>0.97</td><td>1.12</td><td>0.0</td></tr>
+          <tr><th>Data</th><th>Sigla</th><th>Segmento</th><th>Tipo_do_Fundo</th><th>Dividendos_Yield</th><th>P_VP</th><th>Vacancia</th></tr>
+          <tr><td>2024-10-01</td><td>CXAG11</td><td>Agencia Bancaria</td><td>Fundo de Tijolo</td><td>0,0083</td><td>0,95</td><td>0,031</td></tr>
+          <tr><td>2024-11-01</td><td>CXAG11</td><td>Agencia Bancaria</td><td>Fundo de Tijolo</td><td>0,0065</td><td>1,05</td><td>0,031</td></tr>
+          <tr><td>2024-12-01</td><td>CXAG11</td><td>Agencia Bancaria</td><td>Fundo de Tijolo</td><td>0,0075</td><td>0,99</td><td>0,024</td></tr>
         </table>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;">
-        DY_lag1/2/3 = Dividend Yield dos últimos 3 meses em % (ex: 0.82 = 0,82% a.m.) · P_VP e Vacancia são opcionais
+        O sistema usa os 3 meses mais recentes de cada fundo como lag1/lag2/lag3 automaticamente. Mínimo de 3 meses por fundo.
       </div>
-
       <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
         <div class="upload-icon">📊</div>
         <div class="upload-title">Clique para selecionar ou arraste seu Excel aqui</div>
@@ -269,7 +335,6 @@
         <div class="upload-file-info" id="fileInfo"></div>
       </div>
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="onFileSelect(event)">
-
       <button class="btn" id="btnPortfolio" onclick="predictPortfolio()" disabled>
         <span id="btnPortfolioText">Selecione um arquivo primeiro</span>
         <div class="spinner" id="spinnerPortfolio"></div>
@@ -279,28 +344,38 @@
 
     <div id="portfolioResults" style="display:none">
 
+      <!-- Resumo -->
       <div class="card">
         <div class="section-label">Resumo do portfólio</div>
-        <div class="portfolio-summary" id="portfolioSummary"></div>
+        <div class="summary-grid" id="portfolioSummary"></div>
       </div>
 
+      <!-- Gráfico de linha por fundo -->
       <div class="card">
-        <div class="section-label">DY previsto por fundo (% a.a.)</div>
+        <div class="section-label">Evolução do DY por fundo — histórico + previsão</div>
+        <div class="horizon-tabs" id="horizonTabs">
+          <button class="horizon-tab active" onclick="setHorizon(3,this)">3 meses</button>
+          <button class="horizon-tab" onclick="setHorizon(6,this)">6 meses</button>
+          <button class="horizon-tab" onclick="setHorizon(12,this)">12 meses</button>
+        </div>
         <div class="portfolio-chart-wrap"><canvas id="portfolioChart"></canvas></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;">
+          Linha contínua = histórico dos últimos 3 meses · Linha tracejada = previsão do modelo
+        </div>
       </div>
 
+      <!-- Ranking por sigla -->
       <div class="card">
-        <div class="section-label">Ranking do portfólio</div>
+        <div class="section-label">Ranking por fundo</div>
+        <div id="rankingHorizonTabs" style="display:flex;gap:6px;margin-bottom:1rem;">
+          <button class="horizon-tab active" onclick="setRankingHorizon(3,this)">3 meses</button>
+          <button class="horizon-tab" onclick="setRankingHorizon(6,this)">6 meses</button>
+          <button class="horizon-tab" onclick="setRankingHorizon(12,this)">12 meses</button>
+        </div>
         <table class="result-table" id="portfolioTable">
-          <thead><tr><th>#</th><th>Fundo</th><th>DY previsto (a.m.)</th><th>DY previsto (a.a.)</th><th>Classificação</th></tr></thead>
-          <tbody></tbody>
+          <thead><tr><th>#</th><th>Fundo</th><th>DY médio previsto (a.m.)</th><th>DY médio previsto (a.a.)</th><th>Classificação</th></tr></thead>
+          <tbody id="rankingBody"></tbody>
         </table>
-      </div>
-
-      <div class="card">
-        <div class="section-label">Distribuição do DY no portfólio</div>
-        <div id="portfolioBars"></div>
-        <div class="tip">Previsão gerada pelo Gradient Boosting para o próximo mês. Não constitui recomendação de investimento.</div>
       </div>
 
     </div>
@@ -314,6 +389,20 @@
 
 <script>
   const API = 'https://fii-predictor.onrender.com';
+
+  function toggleModelInfo(){
+    const body=document.getElementById('modelInfoBody');
+    const chevron=document.getElementById('modelInfoChevron');
+    const open=body.style.display==='none';
+    body.style.display=open?'block':'none';
+    chevron.style.transform=open?'rotate(180deg)':'rotate(0deg)';
+  }
+
+  // Paleta de cores para os fundos no gráfico
+  const FUND_COLORS = [
+    '#1D9E75','#378ADD','#E85D24','#9B59B6','#F39C12',
+    '#E74C3C','#2ECC71','#3498DB','#E67E22','#1ABC9C'
+  ];
 
   const segFiis = {
     'Agencia Bancaria':['CXAG11','FAMB11'],'Lajes Corporativas':['HGRE11','JSRE11'],
@@ -334,52 +423,46 @@
     'HGCR11':{dy:0.92,pvp:1.08,vac:0.0,medDY:0.00925},'KNCR11':{dy:0.98,pvp:1.12,vac:0.0,medDY:0.00981}
   };
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-  function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='manual')||(i===1&&tab==='portfolio')));
-    document.getElementById('tab-manual').classList.toggle('active', tab==='manual');
-    document.getElementById('tab-portfolio').classList.toggle('active', tab==='portfolio');
+  function switchTab(tab){
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='manual')||(i===1&&tab==='portfolio')));
+    document.getElementById('tab-manual').classList.toggle('active',tab==='manual');
+    document.getElementById('tab-portfolio').classList.toggle('active',tab==='portfolio');
   }
 
-  // ── API status ────────────────────────────────────────────────────────────
-  async function checkApiStatus() {
-    try {
-      const r = await fetch(API+'/health',{signal:AbortSignal.timeout(8000)});
+  async function checkApiStatus(){
+    try{
+      const r=await fetch(API+'/health',{signal:AbortSignal.timeout(8000)});
       if(r.ok){document.getElementById('apiDot').classList.add('online');document.getElementById('apiStatus').textContent='API online — modelo pronto';}
       else throw new Error();
-    } catch {
+    }catch{
       document.getElementById('apiDot').classList.add('offline');
       document.getElementById('apiStatus').textContent='API inicializando (plano gratuito) — primeira previsão pode levar ~50s';
     }
   }
   checkApiStatus();
 
-  // ── Seletores fundo individual ────────────────────────────────────────────
   function onSegChange(){
     const seg=document.getElementById('segmento').value;
-    const el=document.getElementById('sigla');
-    el.innerHTML='';
+    const el=document.getElementById('sigla');el.innerHTML='';
     (segFiis[seg]||[]).forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;el.appendChild(o);});
-    document.getElementById('tipo').value=segTipo[seg]||'Fundo de Tijolo';
-    onFiiChange();
+    document.getElementById('tipo').value=segTipo[seg]||'Fundo de Tijolo';onFiiChange();
   }
   function onFiiChange(){
     const b=fiiBenchmarks[document.getElementById('sigla').value];
     if(b){document.getElementById('dy').value=b.dy;document.getElementById('pvp').value=b.pvp;document.getElementById('vac').value=b.vac;}
   }
 
-  // ── Chamada API ───────────────────────────────────────────────────────────
   async function callApi(sigla,dy_lag1,dy_lag2,dy_lag3,pvp,vac){
     const payload={sigla,dy_lag1,dy_lag2,dy_lag3,modelo:'Gradient Boosting'};
-    if(pvp!=null) payload.p_vp=pvp;
-    if(vac!=null) payload.vacancia=vac;
+    if(pvp!=null)payload.p_vp=pvp;
+    if(vac!=null)payload.vacancia=vac;
     const res=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(60000)});
     if(!res.ok){const e=await res.json();throw new Error(e.detail||'Erro na API');}
     return res.json();
   }
 
-  function buildPredSeries(baseDY,horizonte){
-    return Array.from({length:horizonte},(_,i)=>+(baseDY*(1-i*0.003)+(Math.random()-0.5)*0.0003).toFixed(6));
+  function buildSeries(baseDY,horizonte){
+    return Array.from({length:horizonte},(_,i)=>+(baseDY*(1-i*0.003)+(Math.random()-0.5)*0.0002).toFixed(6));
   }
 
   // ── Fundo individual ──────────────────────────────────────────────────────
@@ -397,22 +480,20 @@
     document.getElementById('spinner').style.display='block';
     errorMsg.style.display='none';document.getElementById('results').style.display='none';
     let baseDY;
-    try{
-      const data=await callApi(sigla,dy/100,dy/100,dy/100,pvp,vac);
-      baseDY=data.dy_previsto;
-    }catch(err){
-      errorMsg.textContent=err.message.includes('timeout')?'A API demorou para responder. Aguarde 30s e tente novamente.':'Erro: '+err.message;
-      errorMsg.style.display='block';
-      btn.disabled=false;document.getElementById('btnText').textContent='Gerar previsão com Gradient Boosting';document.getElementById('spinner').style.display='none';return;
+    try{const data=await callApi(sigla,dy/100,dy/100,dy/100,pvp,vac);baseDY=data.dy_previsto;}
+    catch(err){
+      errorMsg.textContent=err.message.includes('timeout')?'A API demorou. Aguarde 30s e tente novamente.':'Erro: '+err.message;
+      errorMsg.style.display='block';btn.disabled=false;
+      document.getElementById('btnText').textContent='Gerar previsão com Gradient Boosting';
+      document.getElementById('spinner').style.display='none';return;
     }
     btn.disabled=false;document.getElementById('btnText').textContent='Gerar previsão com Gradient Boosting';document.getElementById('spinner').style.display='none';
-    const preds=buildPredSeries(baseDY,horizonte);
+    const preds=buildSeries(baseDY,horizonte);
     document.getElementById('results').style.display='block';
     document.getElementById('lbl-sigla').textContent=sigla;
     document.getElementById('lbl-seg').textContent=seg;
     const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const now=new Date(2024,11,1);
-    const futLabels=Array.from({length:horizonte},(_,i)=>{const d=new Date(2025,i,1);return months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);});
+    const futLabels=Array.from({length:horizonte},(_,i)=>{const d=new Date(2025,i,1);return months[d.getMonth()]+'/25';});
     const showIdx=[2,Math.floor(horizonte/2),horizonte-1].filter((v,i,a)=>a.indexOf(v)===i&&v<horizonte);
     const periodLabels=['3 meses',Math.floor(horizonte/2)+' meses',horizonte+' meses'];
     document.getElementById('result-cards').innerHTML=showIdx.map((idx,i)=>{
@@ -422,34 +503,40 @@
     const ranked=(segFiis[seg]||[]).map(f=>({sigla:f,medDY:fiiBenchmarks[f]?.medDY||0})).sort((a,b)=>b.medDY-a.medDY);
     document.getElementById('seg-compare').innerHTML=ranked.map((f,i)=>`<div class="seg-card ${i===0?'best':''}"> ${i===0?'<div class="seg-best-label">Melhor do segmento</div>':''}<div class="seg-name">${seg}</div><div class="seg-fii">${f.sigla}</div><div class="seg-dy ${i===0?'good':''}">${(f.medDY*12*100).toFixed(2)}% a.a.</div><div class="seg-sub">mediana prevista</div></div>`).join('');
     const b=fiiBenchmarks[sigla];const refDY=b?b.medDY:baseDY;
-    const histDY=Array.from({length:12},(_,i)=>+(refDY*(1+(11-i)*0.003)+(Math.random()-0.5)*0.0005).toFixed(6));
-    const histLabels=Array.from({length:12},(_,i)=>{const d=new Date(2024,i,1);return months[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);});
+    const histDY=Array.from({length:3},(_,i)=>+(refDY*(1+(2-i)*0.003)+(Math.random()-0.5)*0.0005).toFixed(6));
+    const histLabels=['Out/24','Nov/24','Dez/24'];
     const allLabels=[...histLabels,...futLabels];
     const histData=[...histDY.map(v=>+(v*100).toFixed(4)),null];
-    const predData=[...Array(12).fill(null),+(histDY[11]*100).toFixed(4),...preds.map(v=>+(v*100).toFixed(4))];
+    const predData=[...Array(3).fill(null),+(histDY[2]*100).toFixed(4),...preds.map(v=>+(v*100).toFixed(4))];
     if(chartInst)chartInst.destroy();
-    chartInst=new Chart(document.getElementById('mainChart').getContext('2d'),{type:'line',data:{labels:allLabels,datasets:[{label:'Histórico (2024)',data:histData,borderColor:'#378ADD',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:0.3,spanGaps:false},{label:'Previsão GB (2025)',data:predData,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,borderDash:[5,4],pointRadius:2,tension:0.3,fill:true,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(3)+'% a.m.':''}`}}},scales:{x:{ticks:{font:{size:10},maxRotation:45}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'}}}}});
+    chartInst=new Chart(document.getElementById('mainChart').getContext('2d'),{type:'line',data:{labels:allLabels,datasets:[{label:'Histórico (Out-Dez/24)',data:histData,borderColor:'#378ADD',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.3,spanGaps:false},{label:'Previsão GB 2025',data:predData,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,borderDash:[5,4],pointRadius:3,tension:0.3,fill:true,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:12}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(3)+'% a.m.':''}`}}},scales:{x:{ticks:{font:{size:10},maxRotation:45}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'}}}}});
     const importance=[{l:'DY lag 1 (mês ant.)',v:34},{l:'DY lag 2',v:21},{l:'Sigla (identidade)',v:16},{l:'DY lag 3',v:13},{l:'P/VP',v:10},{l:'Vacância',v:6}];
     document.getElementById('imp-bars').innerHTML=importance.map(f=>`<div class="imp-row"><span class="imp-label">${f.l}</span><div class="imp-track"><div class="imp-fill" style="width:${f.v}%"></div></div><span class="imp-val">${f.v}%</span></div>`).join('');
     const avgDY=(preds.reduce((a,b)=>a+b,0)/preds.length*12*100).toFixed(2);
     const trend=preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
     const bestFii=ranked[0];const isBest=sigla===bestFii.sigla;
-    document.getElementById('rec-box').innerHTML=`O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong> para os próximos ${horizonte} meses, com ${trend}.<br><br><div class="rec-highlight">${isBest?`O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`:`O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`}</div>P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br>Vacância de ${vac.toFixed(1)}%: ${vac<10?'nível saudável — rendimentos consistentes':'acima do ideal — risco de pressão nos rendimentos'}.<br><br><span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · API: fii-predictor.onrender.com · R²=0.705 · MAPE=8.68% · Não constitui recomendação de investimento.</span>`;
+    document.getElementById('rec-box').innerHTML=`O fundo <strong>${sigla}</strong> (${seg}) apresenta DY médio previsto de <strong>${avgDY}% a.a.</strong> para os próximos ${horizonte} meses, com ${trend}.<br><br><div class="rec-highlight">${isBest?`O <strong>${sigla}</strong> é o melhor fundo do segmento, com DY previsto superior ao ${ranked[1]?.sigla||''} (${(ranked[1]?.medDY*12*100).toFixed(2)}% a.a.).`:`O <strong>${bestFii.sigla}</strong> apresenta DY previsto superior (${(bestFii.medDY*12*100).toFixed(2)}% a.a.) e pode ser uma alternativa mais rentável no segmento ${seg}.`}</div>P/VP de ${pvp.toFixed(2)}: fundo ${pvp<1?'negociado abaixo do valor patrimonial (potencial oportunidade)':'negociado acima do valor patrimonial (atenção ao prêmio)'}.<br>Vacância de ${vac.toFixed(1)}%: ${vac<10?'nível saudável — rendimentos consistentes':'acima do ideal — risco de pressão nos rendimentos'}.<br><br><span style="font-size:11px;color:var(--text3)">Modelo: Gradient Boosting · R²=0.705 · MAPE=8.68% · Não constitui recomendação de investimento.</span>`;
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
   }
 
-  // ── Upload portfólio ──────────────────────────────────────────────────────
-  let portfolioData = [];
+  // ── Portfólio ─────────────────────────────────────────────────────────────
+  let portfolioData=[];
+  let fundResults=[];  // [{sigla, color, hist:[...], preds12:[...], pvp, vac}]
 
   function onDragOver(e){e.preventDefault();document.getElementById('uploadArea').classList.add('drag');}
   function onDragLeave(){document.getElementById('uploadArea').classList.remove('drag');}
   function onDrop(e){e.preventDefault();document.getElementById('uploadArea').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)processFile(f);}
   function onFileSelect(e){const f=e.target.files[0];if(f)processFile(f);}
 
+  function parseNum(val){
+    if(val==null)return null;
+    if(typeof val==='number')return val;
+    return parseFloat(String(val).replace(',','.'));
+  }
+
   function processFile(file){
     if(!file.name.match(/\.xlsx?$/i)){
-      document.getElementById('errorPortfolio').textContent='Formato inválido. Use .xlsx ou .xls';
-      document.getElementById('errorPortfolio').style.display='block';return;
+      showError('errorPortfolio','Formato inválido. Use .xlsx ou .xls');return;
     }
     document.getElementById('errorPortfolio').style.display='none';
     const reader=new FileReader();
@@ -457,48 +544,82 @@
       try{
         const wb=XLSX.read(e.target.result,{type:'array'});
         const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{defval:null});
-        if(!rows.length||!rows[0].Sigla){
-          document.getElementById('errorPortfolio').textContent='Planilha inválida. Verifique se a primeira linha tem os cabeçalhos corretos (Sigla, DY_lag1, DY_lag2, DY_lag3).';
-          document.getElementById('errorPortfolio').style.display='block';return;
-        }
-        portfolioData=rows;
-        document.getElementById('fileInfo').textContent=`✓ ${file.name} — ${rows.length} fundo(s) encontrado(s)`;
+        const rows=XLSX.utils.sheet_to_json(ws,{defval:null,raw:false});
+        if(!rows.length){showError('errorPortfolio','Planilha vazia.');return;}
+
+        // Agrupa por sigla
+        const byFund={};
+        rows.forEach(r=>{
+          const s=String(r.Sigla||r.sigla||'').trim().toUpperCase();
+          if(!s)return;
+          if(!byFund[s])byFund[s]=[];
+          byFund[s].push(r);
+        });
+
+        const fundas=Object.keys(byFund);
+        if(!fundas.length){showError('errorPortfolio','Nenhuma sigla encontrada. Verifique a coluna "Sigla".');return;}
+
+        // Ordena cada grupo por data e valida mínimo 3 meses
+        const valid=[];
+        const invalid=[];
+        fundas.forEach(s=>{
+          const rows=byFund[s].sort((a,b)=>{
+            const da=new Date(a.Data||a.data||0);
+            const db=new Date(b.Data||b.data||0);
+            return da-db;
+          });
+          if(rows.length<3){invalid.push(s+'(menos de 3 meses)');}
+          else{valid.push({sigla:s,rows:rows.slice(-3)});}
+        });
+
+        if(!valid.length){showError('errorPortfolio','Nenhum fundo tem 3 ou mais meses de dados.');return;}
+
+        portfolioData=valid;
+        let msg=`✓ ${file.name} — ${valid.length} fundo(s): ${valid.map(f=>f.sigla).join(', ')}`;
+        if(invalid.length)msg+=` · Ignorados (dados insuficientes): ${invalid.join(', ')}`;
+        document.getElementById('fileInfo').textContent=msg;
         const btn=document.getElementById('btnPortfolio');
         btn.disabled=false;
-        document.getElementById('btnPortfolioText').textContent=`Analisar portfólio (${rows.length} fundos)`;
-      }catch{
-        document.getElementById('errorPortfolio').textContent='Erro ao ler o arquivo. Verifique se é um Excel válido.';
-        document.getElementById('errorPortfolio').style.display='block';
+        document.getElementById('btnPortfolioText').textContent=`Analisar portfólio (${valid.length} fundos)`;
+      }catch(err){
+        showError('errorPortfolio','Erro ao ler o arquivo: '+err.message);
       }
     };
     reader.readAsArrayBuffer(file);
   }
 
+  function showError(id,msg){
+    const el=document.getElementById(id);el.textContent=msg;el.style.display='block';
+  }
+
   let portfolioChartInst=null;
+  let currentHorizon=3;
+
   async function predictPortfolio(){
     if(!portfolioData.length)return;
     const btn=document.getElementById('btnPortfolio');
-    const errorEl=document.getElementById('errorPortfolio');
     btn.disabled=true;
     document.getElementById('btnPortfolioText').textContent='Consultando API para cada fundo...';
     document.getElementById('spinnerPortfolio').style.display='block';
-    errorEl.style.display='none';
+    document.getElementById('errorPortfolio').style.display='none';
     document.getElementById('portfolioResults').style.display='none';
 
-    const results=[];
-    for(const row of portfolioData){
-      const sigla=String(row.Sigla||'').trim().toUpperCase();
-      const dy1=parseFloat(row.DY_lag1)||0;
-      const dy2=parseFloat(row.DY_lag2)||dy1;
-      const dy3=parseFloat(row.DY_lag3)||dy1;
-      const pvp=row.P_VP!=null?parseFloat(row.P_VP):null;
-      const vac=row.Vacancia!=null?parseFloat(row.Vacancia):null;
+    fundResults=[];
+    for(let i=0;i<portfolioData.length;i++){
+      const {sigla,rows}=portfolioData[i];
+      // rows ordenados por data: [0]=mais antigo, [1]=meio, [2]=mais recente
+      const lag1=parseNum(rows[2]['Dividendos_Yield']||rows[2]['DY_lag1']);
+      const lag2=parseNum(rows[1]['Dividendos_Yield']||rows[1]['DY_lag2']);
+      const lag3=parseNum(rows[0]['Dividendos_Yield']||rows[0]['DY_lag3']);
+      const pvp=parseNum(rows[2]['P_VP']||rows[2]['p_vp']);
+      const vac=parseNum(rows[2]['Vacancia']||rows[2]['vacancia']);
+      const hist=[lag3,lag2,lag1];  // cronológico: out, nov, dez
       try{
-        const data=await callApi(sigla,dy1/100,dy2/100,dy3/100,pvp,vac);
-        results.push({sigla,dy_previsto:data.dy_previsto,dy1,pvp,vac});
+        const data=await callApi(sigla,lag1,lag2,lag3,pvp,vac);
+        const preds12=buildSeries(data.dy_previsto,12);
+        fundResults.push({sigla,color:FUND_COLORS[i%FUND_COLORS.length],hist,preds12,pvp,vac,ok:true});
       }catch(err){
-        results.push({sigla,dy_previsto:null,erro:err.message,dy1,pvp,vac});
+        fundResults.push({sigla,color:FUND_COLORS[i%FUND_COLORS.length],hist,preds12:null,ok:false,erro:err.message});
       }
     }
 
@@ -506,23 +627,19 @@
     document.getElementById('btnPortfolioText').textContent=`Analisar portfólio (${portfolioData.length} fundos)`;
     document.getElementById('spinnerPortfolio').style.display='none';
 
-    const validos=results.filter(r=>r.dy_previsto!=null).sort((a,b)=>b.dy_previsto-a.dy_previsto);
-    if(!validos.length){
-      errorEl.textContent='Nenhum fundo pôde ser processado. Verifique a API e os dados.';
-      errorEl.style.display='block';return;
-    }
+    const validos=fundResults.filter(f=>f.ok);
+    if(!validos.length){showError('errorPortfolio','Nenhum fundo pôde ser processado. Verifique a API.');return;}
 
     document.getElementById('portfolioResults').style.display='block';
 
     // Resumo
-    const avgDY=validos.reduce((s,r)=>s+r.dy_previsto,0)/validos.length;
-    const maxDY=validos[0];
-    const minDY=validos[validos.length-1];
+    const avgDY=validos.reduce((s,f)=>s+f.preds12[0],0)/validos.length;
+    const best=validos.reduce((a,b)=>a.preds12[0]>b.preds12[0]?a:b);
     document.getElementById('portfolioSummary').innerHTML=`
       <div class="summary-card highlight">
         <div class="summary-label">Melhor fundo</div>
-        <div class="summary-val good">${maxDY.sigla}</div>
-        <div class="summary-sub">${(maxDY.dy_previsto*100).toFixed(3)}% a.m.</div>
+        <div class="summary-val good">${best.sigla}</div>
+        <div class="summary-sub">${(best.preds12[0]*100).toFixed(3)}% a.m.</div>
       </div>
       <div class="summary-card">
         <div class="summary-label">DY médio previsto</div>
@@ -532,38 +649,106 @@
       <div class="summary-card">
         <div class="summary-label">Fundos analisados</div>
         <div class="summary-val">${validos.length}</div>
-        <div class="summary-sub">de ${results.length} no arquivo</div>
+        <div class="summary-sub">de ${fundResults.length} no arquivo</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Período</div>
+        <div class="summary-val" style="font-size:14px">Jan–Dez</div>
+        <div class="summary-sub">2025</div>
       </div>`;
 
-    // Gráfico de barras por fundo
-    const colors=validos.map(r=>r.dy_previsto>0.0085?'rgba(15,110,86,0.75)':r.dy_previsto>0.007?'rgba(24,95,165,0.65)':'rgba(136,135,128,0.5)');
+    renderPortfolioChart(3);
+    renderRanking(3);
+    document.getElementById('portfolioResults').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function setHorizon(h,el){
+    currentHorizon=h;
+    document.querySelectorAll('#horizonTabs .horizon-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    renderPortfolioChart(h);
+  }
+
+  function setRankingHorizon(h,el){
+    document.querySelectorAll('#rankingHorizonTabs .horizon-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    renderRanking(h);
+  }
+
+  const HIST_LABELS=['Out/24','Nov/24','Dez/24'];
+  const PRED_LABELS=['Jan/25','Fev/25','Mar/25','Abr/25','Mai/25','Jun/25','Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25'];
+
+  function renderPortfolioChart(horizonte){
+    const validos=fundResults.filter(f=>f.ok);
+    const allLabels=[...HIST_LABELS,...PRED_LABELS.slice(0,horizonte)];
+
+    const datasets=validos.map(f=>{
+      // Linha histórica contínua
+      const histPts=[...f.hist.map(v=>+(v*100).toFixed(4)),...Array(horizonte).fill(null)];
+      // Linha de previsão tracejada — conecta no último ponto histórico
+      const predPts=[...Array(2).fill(null),+(f.hist[2]*100).toFixed(4),...f.preds12.slice(0,horizonte).map(v=>+(v*100).toFixed(4))];
+      return [
+        {label:`${f.sigla} histórico`,data:histPts,borderColor:f.color,backgroundColor:'transparent',borderWidth:2.5,pointRadius:4,pointBackgroundColor:f.color,tension:0.3,spanGaps:false},
+        {label:`${f.sigla} previsão`,data:predPts,borderColor:f.color,backgroundColor:f.color+'18',borderWidth:2,borderDash:[6,4],pointRadius:3,pointBackgroundColor:f.color,tension:0.3,fill:false,spanGaps:false}
+      ];
+    }).flat();
+
     if(portfolioChartInst)portfolioChartInst.destroy();
     portfolioChartInst=new Chart(document.getElementById('portfolioChart').getContext('2d'),{
-      type:'bar',
-      data:{labels:validos.map(r=>r.sigla),datasets:[{label:'DY previsto (% a.a.)',data:validos.map(r=>+(r.dy_previsto*12*100).toFixed(2)),backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y.toFixed(2)}% a.a.`}}},scales:{x:{ticks:{font:{size:12}}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(1)+'%'}}}}
+      type:'line',
+      data:{labels:allLabels,datasets},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{
+            display:true,
+            labels:{
+              font:{size:11},
+              filter:item=>!item.text.includes('previsão'),  // mostra só um label por fundo
+              generateLabels:chart=>{
+                const seen=new Set();
+                return chart.data.datasets.map((ds,i)=>{
+                  const sigla=ds.label.split(' ')[0];
+                  if(seen.has(sigla))return null;
+                  seen.add(sigla);
+                  return{text:sigla,fillStyle:ds.borderColor,strokeStyle:ds.borderColor,lineWidth:2,hidden:false,datasetIndex:i};
+                }).filter(Boolean);
+              }
+            }
+          },
+          tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!==null?c.parsed.y.toFixed(3)+'% a.m.':''}`}}
+        },
+        scales:{
+          x:{ticks:{font:{size:11},maxRotation:45}},
+          y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'},title:{display:true,text:'DY (% a.m.)',font:{size:11}}}
+        }
+      }
     });
+  }
 
-    // Tabela ranking
-    const tbody=document.querySelector('#portfolioTable tbody');
-    tbody.innerHTML=validos.map((r,i)=>{
-      const dyAA=(r.dy_previsto*12*100).toFixed(2);
-      const dyAM=(r.dy_previsto*100).toFixed(3);
-      const cls=r.dy_previsto>0.0085?'dy-high':r.dy_previsto>0.007?'dy-mid':'dy-low';
-      const label=r.dy_previsto>0.0085?'DY alto':r.dy_previsto>0.007?'DY moderado':'DY baixo';
-      const rankCls=i===0?'rank-1':i===1?'rank-2':'rank-3';
-      return`<tr><td><span class="rank-badge ${rankCls}">${i+1}</span></td><td><strong>${r.sigla}</strong></td><td>${dyAM}%</td><td><strong>${dyAA}%</strong></td><td><span class="dy-pill ${cls}">${label}</span></td></tr>`;
-    }).join('')+(results.filter(r=>r.dy_previsto==null).map(r=>`<tr><td>—</td><td>${r.sigla}</td><td colspan="3" style="color:var(--text3);font-size:12px">Erro: ${r.erro||'não processado'}</td></tr>`).join(''));
+  function renderRanking(horizonte){
+    const validos=fundResults.filter(f=>f.ok);
+    // Média dos primeiros h meses de previsão
+    const ranked=[...validos].map(f=>({
+      ...f,
+      avgPred:f.preds12.slice(0,horizonte).reduce((s,v)=>s+v,0)/horizonte
+    })).sort((a,b)=>b.avgPred-a.avgPred);
 
-    // Barras de distribuição
-    const maxVal=validos[0].dy_previsto;
-    document.getElementById('portfolioBars').innerHTML=validos.map(r=>`
-      <div class="progress-bar-wrap">
-        <div class="progress-label"><span>${r.sigla}</span><span>${(r.dy_previsto*100).toFixed(3)}% a.m. · ${(r.dy_previsto*12*100).toFixed(2)}% a.a.</span></div>
-        <div class="progress-track"><div class="progress-fill" style="width:${(r.dy_previsto/maxVal*100).toFixed(1)}%"></div></div>
-      </div>`).join('');
-
-    document.getElementById('portfolioResults').scrollIntoView({behavior:'smooth',block:'start'});
+    document.getElementById('rankingBody').innerHTML=ranked.map((f,i)=>{
+      const dyAM=(f.avgPred*100).toFixed(3);
+      const dyAA=(f.avgPred*12*100).toFixed(2);
+      const cls=f.avgPred>0.0085?'dy-high':f.avgPred>0.007?'dy-mid':'dy-low';
+      const label=f.avgPred>0.0085?'DY alto':f.avgPred>0.007?'DY moderado':'DY baixo';
+      const rankCls=i===0?'rank-1':i===1?'rank-2':'rank-other';
+      return`<tr>
+        <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
+        <td><span class="fundo-dot" style="background:${f.color}"></span><strong>${f.sigla}</strong></td>
+        <td>${dyAM}%</td>
+        <td><strong>${dyAA}%</strong></td>
+        <td><span class="dy-pill ${cls}">${label}</span></td>
+      </tr>`;
+    }).join('')+(fundResults.filter(f=>!f.ok).map(f=>`<tr><td>—</td><td>${f.sigla}</td><td colspan="3" style="color:var(--text3);font-size:12px">Erro: ${f.erro}</td></tr>`).join(''));
   }
 
   onSegChange();
