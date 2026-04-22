@@ -137,7 +137,7 @@ def buscar_ifix():
             if PERIODO_INI <= mes <= PERIODO_FIM:
                 val = to_float(item["valor"])
                 if val is not None:
-                    resultado[mes] = round(val / 100, 6)
+                    resultado[mes] = round(val, 4)
         except Exception:
             continue
     print(f"   ✓ {len(resultado)} meses carregados")
