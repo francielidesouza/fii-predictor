@@ -32,7 +32,7 @@ import json
 # CONFIGURAÇÃO — cole seu token brapi aqui
 # Cadastro gratuito em: https://brapi.dev
 # ─────────────────────────────────────────────────────────────────────────────
-BRAPI_TOKEN = API_TOKEN_BRAPI
+BRAPI_TOKEN ="API_TOKEN_BRAPI"
 ##############
 # from dotenv import load_dotenv
 # import os
@@ -339,8 +339,8 @@ def montar_dataset():
 
 
 if __name__ == "__main__":
-    if BRAPI_TOKEN == API_TOKEN_BRAPI:
-        print("⚠ ATENÇÃO: Substitua API_TOKEN_BRAPI pelo seu token da brapi.dev")
+    if BRAPI_TOKEN == "API_TOKEN_BRAPI":
+        print("⚠ ATENÇÃO: Substitua 'API_TOKEN_BRAPI' pelo seu token da brapi.dev")
         print("  Cadastro gratuito em: https://brapi.dev")
         print("  O token gratuito permite até 1.000 requisições/dia — suficiente para este script.")
     else:
