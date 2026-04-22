@@ -1,15 +1,24 @@
 import requests
 
-headers = {'User-Agent': 'Mozilla/5.0'}
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
-# Testa busca de proventos do HGLG11 no Status Invest
-url = 'https://statusinvest.com.br/fundo-imobiliario/companytickerprovents'
+# Yahoo Finance — histórico de cotação HGLG11
+url = 'https://query1.finance.yahoo.com/v8/finance/chart/HGLG11.SA'
 params = {
-    'ticker': 'HGLG11',
-    'chartprovents': 'false',
-    'startat': '2019-01-01',
-    'endat': '2024-12-31'
+    'interval': '1mo',
+    'range': '6y',
+    'events': 'dividends'
 }
 r = requests.get(url, params=params, headers=headers, timeout=15)
 print('Status:', r.status_code)
-print('Resposta:', r.text[:2000])
+import json
+data = r.json()
+# Mostra dividendos
+events = data.get('chart', {}).get('result', [{}])[0].get('events', {})
+divs = events.get('dividends', {})
+print('Dividendos encontrados:', len(divs))
+print('Amostra:', list(divs.items())[:3])
+# Mostra cotações
+meta = data.get('chart', {}).get('result', [{}])[0].get('meta', {})
+print('Moeda:', meta.get('currency'))
+print('Símbolo:', meta.get('symbol'))
