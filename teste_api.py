@@ -1,9 +1,15 @@
-import requests, os
-from dotenv import load_dotenv
-load_dotenv()
-token = os.getenv('BRAPI_TOKEN')
-r = requests.get('https://brapi.dev/api/quote/HGLG11', params={'token': token, 'fundamental': 'true', 'dividends': 'true'})
+import requests
+
+headers = {'User-Agent': 'Mozilla/5.0'}
+
+# Testa busca de proventos do HGLG11 no Status Invest
+url = 'https://statusinvest.com.br/fundo-imobiliario/companytickerprovents'
+params = {
+    'ticker': 'HGLG11',
+    'chartprovents': 'false',
+    'startat': '2019-01-01',
+    'endat': '2024-12-31'
+}
+r = requests.get(url, params=params, headers=headers, timeout=15)
 print('Status:', r.status_code)
-import json
-data = r.json()
-print(json.dumps(data, indent=2)[:3000])
+print('Resposta:', r.text[:2000])
