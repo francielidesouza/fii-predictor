@@ -32,13 +32,13 @@ import json
 # CONFIGURAÇÃO — cole seu token brapi aqui
 # Cadastro gratuito em: https://brapi.dev
 # ─────────────────────────────────────────────────────────────────────────────
-BRAPI_TOKEN ="API_TOKEN_BRAPI"
+# BRAPI_TOKEN ="API_TOKEN_BRAPI"
 ##############
-# from dotenv import load_dotenv
-# import os
+from dotenv import load_dotenv
+import os
 
-# load_dotenv()
-# BRAPI_TOKEN = os.getenv("BRAPI_TOKEN")
+load_dotenv()
+BRAPI_TOKEN = os.getenv("BRAPI_TOKEN")
 ###############
 
 # Período do dataset
