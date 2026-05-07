@@ -203,7 +203,10 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
           <select id="tipo"><option>Fundo de Tijolo</option></select>
         </div>
         <div class="field"><label>Modelo de ML</label>
-          <select id="modelo"><option>Gradient Boosting</option><option>Random Forest</option><option>XGBoost</option></select>
+          <select id="modelo">
+            <option value="Random Forest">Random Forest</option>
+            <option value="XGBoost">XGBoost</option>
+          </select>
         </div>
       </div>
       <div style="margin-bottom:12px">
@@ -322,12 +325,19 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
     <div class="card">
       <div class="section-label">Formato esperado — DatasetUsuario.xlsx</div>
       <div class="template-box">
-        <div class="template-title">Colunas obrigatórias (mínimo 3 meses por fundo):</div>
+        <div class="template-title">📋 Como preencher o DatasetUsuario.xlsx</div>
+        <div style="font-size:11px;color:var(--amber-text);margin-bottom:8px;line-height:1.7">
+          <strong>Período mínimo:</strong> 6 meses por fundo (o modelo usa os 3 meses anteriores para prever o próximo)<br>
+          <strong>Segmentos aceitos:</strong> Logistico · Shoppings · Hibrido · Escritorios<br>
+          <strong>Segmentos excluídos:</strong> Títulos e Val. Mob. e FOF — o modelo não cobre esses segmentos<br>
+          <strong>Dica:</strong> Quanto mais meses históricos, melhor a predição
+        </div>
         <table class="template-table">
-          <tr><th>Data</th><th>Sigla</th><th>Segmento</th><th>Tipo_do_Fundo</th><th>Dividendos_Yield</th><th>P_VP</th><th>SELIC</th></tr>
-          <tr><td>2024-10-01</td><td>HGLG11</td><td>Logístico</td><td>Fundo de Tijolo</td><td>0,0082</td><td>0,91</td><td>0,0104</td></tr>
-          <tr><td>2024-11-01</td><td>HGLG11</td><td>Logístico</td><td>Fundo de Tijolo</td><td>0,0079</td><td>0,90</td><td>0,0104</td></tr>
-          <tr><td>2024-12-01</td><td>HGLG11</td><td>Logístico</td><td>Fundo de Tijolo</td><td>0,0081</td><td>0,88</td><td>0,0115</td></tr>
+          <tr><th>Data</th><th>Sigla</th><th>Segmento</th><th>Tipo_do_Fundo</th><th>Dividendos_Yield</th><th>P_VP</th></tr>
+          <tr><td>2024-07-01</td><td>HGLG11</td><td>Logistico</td><td>Tijolo</td><td>0,0085</td><td>0,89</td></tr>
+          <tr><td>2024-08-01</td><td>HGLG11</td><td>Logistico</td><td>Tijolo</td><td>0,0084</td><td>0,91</td></tr>
+          <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+          <tr><td>2024-12-01</td><td>HGLG11</td><td>Logistico</td><td>Tijolo</td><td>0,0089</td><td>0,88</td></tr>
         </table>
       </div>
       <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
@@ -337,12 +347,15 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="upload-file-info" id="fileInfo"></div>
       </div>
       <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="onFileSelect(event)">
-      <div class="grid2" style="margin-top:8px">
+      <div style="margin-top:8px">
         <div class="field"><label>Modelo</label>
-          <select id="port-modelo"><option>Gradient Boosting</option><option>Random Forest</option><option>XGBoost</option></select>
+          <select id="port-modelo">
+            <option value="Random Forest">Random Forest</option>
+            <option value="XGBoost">XGBoost</option>
+          </select>
         </div>
-        <div class="field"><label>Data de referência</label><input type="month" id="port-dataRef" value="2025-01"></div>
       </div>
+      <input type="hidden" id="port-dataRef" value="2025-01">
       <button class="btn" id="btnPortfolio" onclick="predictPortfolio()" disabled>
         <span id="btnPortfolioText">Selecione um arquivo primeiro</span>
         <div class="spinner" id="spinnerPortfolio"></div>
