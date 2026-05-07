@@ -415,18 +415,8 @@ const PVP_HIST = {
 };
 const SELIC_ANUAL = [0.0054,0.0025,0.0057,0.0113,0.0135,0.0104]; // 2019-2024 mensal media
 
-// Dados REAIS 2025 — brapi.dev Pro (extraídos em abril/2026)
-const REAL_2025 = {
-  'HGLG11':[0.006746,0.00676,0.006765,0.006761,0.006759,0.006764,0.006759,0.006769,0.006781,0.006769,0.005901,0.006635],
-  'MXRF11':[0.010074,0.009426,0.009591,0.010879,0.010844,0.01089,0.010522,0.01026,0.010687,0.010644,0.010665,0.009328],
-  'XPML11':[0.007582,0.008444,0.006468,0.005394,0.008766,0.005354,0.010807,0.008557,0.008161,0.006645,0.01196,0.01196],
-  'HGCR11':[0.010977,0.010907,0.010983,0.010904,0.010847,0.010764,0.010752,0.01087,0.010853,0.010318,0.010317,0.010214],
-  'VISC11':[0.006414,0.006385,0.006395,0.006418,0.006434,0.006541,0.006552,0.006558,0.006582,0.006592,0.006577,0.006587],
-  'KNCR11':[0.010537,0.010536,0.010235,0.011406,0.011795,0.011785,0.013259,0.01325,0.013272,0.011741,0.010882,0.01273],
-  'CPTS11':[0.008805,0.010321,0.008915,0.009622,0.009962,0.009405,0.009558,0.009534,0.009824,0.010565,0.009473,0.011028],
-  'XPLG11':[0.0072,0.0074,0.0071,0.0073,0.0075,0.0073,0.0076,0.0074,0.0077,0.0075,0.0078,0.0076],
-  'KISU11':[0.0068,0.0070,0.0069,0.0071,0.0072,0.0070,0.0073,0.0071,0.0074,0.0072,0.0075,0.0073],
-};
+// Cache de dados reais 2025 — preenchido dinamicamente via API
+const CACHE_2025 = {};
 // Dados reais 2024 para referência histórica
 const REAL_2024 = {
   'HGLG11':[0.0082,0.0079,0.0081,0.0083,0.0080,0.0082,0.0085,0.0084,0.0086,0.0088,0.0087,0.0089],
@@ -487,7 +477,10 @@ let _vsReal=[], _vsPred=[], _vsSig='';
 
 function onHorizonteChange(){
   const hz=parseInt(document.getElementById('horizonte').value);
-  if(_vsReal.length && _vsPred.length) renderVsChart(_vsReal,_vsPred,_vsSig,hz);
+  if(_vsReal.length && _vsPred.length) {
+    const semDados = !CACHE_2025[_vsSig];
+    renderVsChart(_vsReal,_vsPred,_vsSig,hz,semDados);
+  }
   // Atualiza cards de resumo também
   if(_vsPred.length) updateResultCards(_vsPred, hz);
 }
@@ -510,7 +503,7 @@ function updateResultCards(preds, hz){
   }).join('');
 }
 
-function renderVsChart(real2025, pred2025all, sig, hz){
+function renderVsChart(real2025, pred2025all, sig, hz, semDadosReais=false){
   const real = real2025.slice(0,hz).map(v=>+(v*100).toFixed(4));
   const pred = pred2025all.slice(0,hz).map(v=>+(v*100).toFixed(4));
   const meses = MONTHS.slice(0,hz).map(m=>m+'/25');
@@ -536,11 +529,19 @@ function renderVsChart(real2025, pred2025all, sig, hz){
   });
 
   const vsMetEl=document.getElementById('vsMetrics');
-  if(vsMetEl) vsMetEl.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px">
-    <span>MAE: <strong>${mae}% a.m.</strong></span>
-    <span>MAPE: <strong>${mapeVal}%</strong></span>
-    <span style="color:var(--text3)">Baseado em ${hz} meses de 2025 (dados reais brapi)</span>
-  </div>`;
+  if(vsMetEl) {
+    if(semDadosReais) {
+      vsMetEl.innerHTML=`<div style="font-size:12px;color:var(--amber-text);background:var(--amber-bg);padding:8px 12px;border-radius:8px;margin-top:10px">
+        ⚠ Dados reais de 2025 não disponíveis para ${sig} na brapi.dev. O gráfico mostra apenas a previsão do modelo.
+      </div>`;
+    } else {
+      vsMetEl.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px">
+        <span>MAE: <strong>${mae}% a.m.</strong></span>
+        <span>MAPE: <strong>${mapeVal}%</strong></span>
+        <span style="color:var(--text3)">Baseado em ${hz} meses de 2025 (dados reais brapi)</span>
+      </div>`;
+    }
+  }
 }
 
 async function predictSingle(){
@@ -622,13 +623,29 @@ async function predictSingle(){
   ].map(l=>`<div class="legend-item"><${l.dash?'span class="legend-dash" style="border-color:'+l.c+'"':'span class="legend-dot" style="background:'+l.c+'"'}></span>${l.label}</div>`).join('');
 
   // ── GRÁFICO 2: Real 2025 (brapi) vs Predito pelo modelo ──────────────────
-  const real2025raw = REAL_2025[sig] || Array(12).fill(dy);
-  const pred2025all = buildSeries(dyPrevisto,12);
-  // Salva globalmente para atualizar ao trocar horizonte
-  _vsReal = real2025raw;
+  // Busca dados reais dinamicamente via API (token protegido no servidor)
+  let real2025raw = null;
+  try {
+    const rHist = await fetch(`${API}/fii/${sig}/historico2025`, {
+      signal: AbortSignal.timeout(20000)
+    });
+    if (rHist.ok) {
+      const hData = await rHist.json();
+      real2025raw = hData.historico.map(h => h.dy);
+    }
+  } catch(e) {
+    console.warn('Histórico 2025 indisponível para', sig, e);
+  }
+
+  // Fallback: se não trouxe dados da brapi, usa cache ou null
+  if (!real2025raw && CACHE_2025[sig]) real2025raw = CACHE_2025[sig];
+  if (real2025raw) CACHE_2025[sig] = real2025raw;
+
+  const pred2025all = buildSeries(dyPrevisto, 12);
+  _vsReal = real2025raw || Array(12).fill(dy);
   _vsPred = pred2025all;
   _vsSig  = sig;
-  renderVsChart(real2025raw, pred2025all, sig, hz);
+  renderVsChart(_vsReal, pred2025all, sig, hz, !real2025raw);
 
   // ── GRÁFICO 3: Com pandemia vs Sem pandemia ───────────────────────────────
   renderPandemiaChart(seg, dyPrevisto, hz, futLabels);

@@ -507,6 +507,58 @@ async def get_fii_brapi(sigla: str):
             raise HTTPException(504, detail="Timeout na brapi.dev")
 
 
+@app.get("/fii/{sigla}/historico2025", tags=["brapi.dev"])
+async def get_historico_2025(sigla: str):
+    """
+    Retorna o DY mensal real de jan/2025 a dez/2025 para o fundo.
+    Usado pelo grafico Real 2025 vs Previsto no frontend.
+    Token protegido no servidor — nao expoe credencial ao usuario.
+    """
+    if not BRAPI_TOKEN:
+        raise HTTPException(503, detail="BRAPI_TOKEN nao configurado")
+    url = f"{BRAPI_BASE}/v2/fii/indicators/history"
+    params = {
+        "symbols":   sigla.upper(),
+        "startDate": "2025-01-01",
+        "endDate":   "2025-12-31",
+        "sortOrder": "asc",
+    }
+    async with httpx.AsyncClient(
+        timeout=30,
+        headers={"Authorization": f"Bearer {BRAPI_TOKEN}"}
+    ) as client:
+        try:
+            r = await client.get(url, params=params)
+            if r.status_code != 200:
+                raise HTTPException(r.status_code, detail=f"brapi.dev: {r.status_code}")
+
+            history = r.json().get("history", [])
+            dados = []
+            for item in history:
+                mes = item.get("referenceDate", "")[:7]
+                dy  = item.get("dividendYield1m")
+                pvp = item.get("priceToNav")
+                if mes and dy is not None:
+                    dados.append({
+                        "mes": mes,
+                        "dy":  round(float(dy), 6),
+                        "pvp": round(float(pvp), 4) if pvp else None,
+                    })
+
+            if not dados:
+                raise HTTPException(404, detail=f"Sem dados de 2025 para {sigla.upper()}")
+
+            return {
+                "sigla":   sigla.upper(),
+                "ano":     2025,
+                "meses":   len(dados),
+                "historico": dados,
+                "fonte":   "brapi.dev Pro",
+            }
+        except httpx.TimeoutException:
+            raise HTTPException(504, detail="Timeout na brapi.dev")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
