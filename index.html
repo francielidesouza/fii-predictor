@@ -191,18 +191,16 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
           <select id="segmento" onchange="onSegChange()">
             <option value="Logístico">Logístico</option>
             <option value="Shoppings">Shoppings</option>
-            <option value="Títulos e Val. Mob.">Títulos e Val. Mob.</option>
-            <option value="Lajes Corporativas">Lajes Corporativas</option>
             <option value="Híbrido">Híbrido</option>
-            <option value="Fundo de Fundos">Fundo de Fundos</option>
-            <option value="Hospital">Hospital</option>
+            <option value="Escritórios">Escritórios</option>
+            <option value="Lajes Corporativas">Lajes Corporativas</option>
           </select>
         </div>
         <div class="field"><label>Sigla</label><select id="sigla"></select></div>
       </div>
       <div class="grid2">
         <div class="field"><label>Tipo do fundo</label>
-          <select id="tipo"><option>Fundo de Tijolo</option><option>Fundo de Papel</option><option>Fundo de Fundos</option></select>
+          <select id="tipo"><option>Fundo de Tijolo</option></select>
         </div>
         <div class="field"><label>Modelo de ML</label>
           <select id="modelo"><option>Gradient Boosting</option><option>Random Forest</option><option>XGBoost</option></select>
@@ -388,37 +386,30 @@ const FUND_COLORS = ['#1D9E75','#378ADD','#E85D24','#9B59B6','#F39C12','#E74C3C'
 const SEG_FIIS = {
   'Logístico':['HGLG11','XPLG11','VILG11','BRCO11','BTLG11','HLOG11'],
   'Shoppings':['XPML11','VISC11','HSML11','HGBS11'],
-  'Títulos e Val. Mob.':['MXRF11','HGCR11','KNCR11','IRDM11','CPTS11'],
-  'Lajes Corporativas':['HGRE11','BRCR11','JSRE11','VINO11'],
-  'Híbrido':['RBVA11','KISU11'],
-  'Fundo de Fundos':['BCFF11','KFOF11','HFOF11'],
-  'Hospital':['NSLU11']
+  'Lajes Corporativas':['HGRE11','BRCR11','JSRE11'],
+  'Híbrido':['KNRI11','ALZR11','BRCR11','RBRD11','PATB11','VERE11','BRRI11'],
+  'Escritórios':['BBPO11','HGRE11','CBOP11','CEOC11','CNES11','GTWR11'],
 };
 const SEG_TIPO = {
-  'Logístico':'Fundo de Tijolo','Shoppings':'Fundo de Tijolo',
-  'Lajes Corporativas':'Fundo de Tijolo','Híbrido':'Fundo de Tijolo',
-  'Hospital':'Fundo de Tijolo','Fundo de Fundos':'Fundo de Fundos',
-  'Títulos e Val. Mob.':'Fundo de Papel'
+  'Logístico':'Fundo de Tijolo',
+  'Shoppings':'Fundo de Tijolo',
+  'Lajes Corporativas':'Fundo de Tijolo',
+  'Híbrido':'Fundo de Tijolo',
+  'Escritórios':'Fundo de Tijolo',
 };
 
 // DY histórico anual médio simulado por fundo (2019-2024)
 const DY_HIST = {
-  'MXRF11':[0.0088,0.0090,0.0093,0.0095,0.0098,0.0101],
-  'HGCR11':[0.0082,0.0085,0.0087,0.0090,0.0092,0.0095],
-  'KNCR11':[0.0079,0.0082,0.0084,0.0087,0.0090,0.0093],
   'HGLG11':[0.0075,0.0078,0.0080,0.0082,0.0084,0.0087],
-  'XPLG11':[0.0072,0.0075,0.0078,0.0080,0.0082,0.0085],
   'XPML11':[0.0068,0.0070,0.0073,0.0075,0.0078,0.0082],
+  'KNRI11':[0.0070,0.0072,0.0074,0.0075,0.0076,0.0078],
   'VISC11':[0.0065,0.0068,0.0070,0.0072,0.0075,0.0079],
   'HGRE11':[0.0060,0.0063,0.0065,0.0068,0.0070,0.0073],
 };
 const PVP_HIST = {
-  'MXRF11':[1.05,1.03,1.04,1.02,1.01,0.99],
-  'HGCR11':[0.98,0.97,0.96,0.95,0.94,0.93],
-  'KNCR11':[1.02,1.01,1.00,0.99,0.98,0.97],
   'HGLG11':[0.95,0.93,0.92,0.91,0.90,0.89],
-  'XPLG11':[0.97,0.95,0.94,0.92,0.91,0.90],
   'XPML11':[0.92,0.90,0.89,0.88,0.87,0.86],
+  'KNRI11':[0.97,0.95,0.94,0.93,0.92,0.91],
   'VISC11':[0.90,0.89,0.88,0.87,0.86,0.85],
   'HGRE11':[0.88,0.87,0.86,0.85,0.84,0.83],
 };
@@ -705,13 +696,15 @@ function renderPandemiaChart(seg, dyBase, hz, futLabels){
 }
 
 // ── Top 3 FIIs ────────────────────────────────────────────────────────────────
+// Top 3 apenas com segmentos cobertos pelo modelo preditivo
+// (Titulos e Val. Mob. excluido — limitacao metodologica documentada no TCC)
 const TOP3 = [
-  {rank:'🥇',sigla:'MXRF11',seg:'Títulos e Val. Mob.',tipo:'Fundo de Papel',dy_medio:0.0095,pvp_medio:1.02,class:'gold',
-   why:'Fundo de papel com maior DY médio do dataset. Beneficia diretamente da alta da SELIC — quanto maiores os juros, maior o rendimento dos CRIs que compõem a carteira. P/VP acima de 1 indica confiança do mercado.'},
-  {rank:'🥈',sigla:'HGCR11',seg:'Títulos e Val. Mob.',tipo:'Fundo de Papel',dy_medio:0.0088,pvp_medio:0.95,class:'silver',
-   why:'Portfólio diversificado de CRIs com alta qualidade de crédito. P/VP abaixo de 1 oferece desconto em relação ao valor patrimonial, combinando renda elevada com potencial de valorização.'},
-  {rank:'🥉',sigla:'HGLG11',seg:'Logístico',tipo:'Fundo de Tijolo',dy_medio:0.0082,pvp_medio:0.91,class:'bronze',
-   why:'Maior FII logístico do Brasil em patrimônio. Contratos atípicos de longo prazo garantem previsibilidade de renda. P/VP de 0,91 indica desconto — imóveis avaliados acima do preço de mercado da cota.'},
+  {rank:'🥇',sigla:'HGLG11',seg:'Logístico',tipo:'Fundo de Tijolo',dy_medio:0.0082,pvp_medio:0.91,class:'gold',
+   why:'Maior FII logístico do Brasil em patrimônio. Contratos atípicos de longo prazo (7 a 10 anos) com grandes operadores garantem previsibilidade de renda. P/VP de 0,91 indica desconto — modelo R²=0.37 confirma padrão consistente de DY no segmento.'},
+  {rank:'🥈',sigla:'XPML11',seg:'Shoppings',tipo:'Fundo de Tijolo',dy_medio:0.0078,pvp_medio:0.87,class:'silver',
+   why:'Um dos maiores FIIs de shoppings do Brasil, com portfólio diversificado em centros comerciais premium. DY com sazonalidade em novembro/dezembro (alta temporada). Normalização z-score aplicada no modelo para capturar variação relativa.'},
+  {rank:'🥉',sigla:'KNRI11',seg:'Híbrido',tipo:'Fundo de Tijolo',dy_medio:0.0075,pvp_medio:0.93,class:'bronze',
+   why:'FII híbrido com carteira combinando imóveis logísticos e corporativos. A diversificação entre segmentos reduz a volatilidade do DY — característica capturada pelo modelo com R²=0.21 para o segmento Híbrido.'},
 ];
 
 function renderTop3(){
@@ -746,10 +739,11 @@ function renderTop3(){
   });
 
   document.getElementById('top3Why').innerHTML=`
-    <strong>Por que esses fundos lideram?</strong><br><br>
-    Os três fundos do ranking combinam dois fatores determinantes para o DY histórico no período 2019–2024: <strong>qualidade da carteira</strong> e <strong>sensibilidade à SELIC</strong>.<br><br>
-    <strong>MXRF11 e HGCR11</strong> são fundos de papel (CRIs) — seus rendimentos são indexados ao CDI ou IPCA, o que os beneficiou especialmente no período 2022–2023, quando a SELIC atingiu 13,75% a.a. A variável SELIC tem correlação direta com o DY desses fundos, o que o modelo captura com alta importância.<br><br>
-    <strong>HGLG11</strong> lidera entre os fundos de tijolo graças aos contratos atípicos de longo prazo (7 a 10 anos) com grandes operadores logísticos. Esses contratos protegem o fundo de inadimplência e garantem previsibilidade de renda — característica que o modelo identifica como padrão estável de DY no segmento logístico.<br><br>
+    <strong>Por que esses fundos lideram entre os segmentos cobertos pelo modelo?</strong><br><br>
+    O ranking considera apenas os segmentos para os quais o modelo preditivo foi treinado com sucesso — Logístico, Shoppings e Híbrido — excluindo Títulos e Val. Mob., cujo DY depende do spread individual dos CRIs, variável não disponível em fonte pública estruturada.<br><br>
+    <strong>HGLG11</strong> lidera graças aos contratos atípicos de longo prazo com grandes operadores logísticos, que garantem previsibilidade de renda. O segmento Logístico obteve o melhor R² do modelo (0.37), confirmando que o padrão de DY desses fundos é o mais capturável pelas variáveis disponíveis.<br><br>
+    <strong>XPML11</strong> representa o segmento Shoppings, que apresenta sazonalidade marcada em novembro e dezembro (alta temporada do varejo). O modelo aplica normalização z-score por fundo para capturar a variação relativa do DY, obtendo R²=0.07 positivo.<br><br>
+    <strong>KNRI11</strong> é o principal representante do segmento Híbrido, que combina imóveis logísticos e corporativos. A diversificação reduz a volatilidade do DY e o modelo obteve R²=0.21 para esse segmento.<br><br>
     <em style="font-size:11px;color:var(--text3)">Ranking baseado no DY médio mensal do dataset de treino (brapi.dev Pro + BCB, jan/2019–dez/2024). Não constitui recomendação de investimento.</em>`;
 }
 

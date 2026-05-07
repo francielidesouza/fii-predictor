@@ -59,6 +59,7 @@ SEGMENTOS_CONFIG = {
 
 SEGMENTOS_EXCLUIDOS = {
     "Titulos e Val. Mob.": "DY indexado ao spread dos CRIs — nao capturavel com variaveis macroeconomicas mensais",
+    "FOF":                 "DY dependente da carteira de outros FIIs e decisoes do gestor — nao capturavel com variaveis publicas",
     "Hospital":            "apenas 3 fundos com comportamento muito distinto",
     "Varejo":              "apenas 3 fundos — amostra insuficiente",
     "Outros":              "grupo heterogeneo sem criterio de homogeneidade",

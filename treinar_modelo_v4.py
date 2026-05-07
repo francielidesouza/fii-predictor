@@ -47,10 +47,11 @@ COL_TIPO     = "Tipo_do_Fundo"
 SAIDA_DIR = Path("modelo")
 
 SEGS_EXCLUIR = {
-    "Outros":   "grupo heterogeneo sem criterio de homogeneidade",
-    "Hospital": "apenas 3 fundos com comportamento muito distinto",
-    "Varejo":   "apenas 3 fundos — amostra insuficiente para generalizacao",
-    "Titulos e Val. Mob.": "DY indexado ao spread dos CRIs — nao capturavel com variaveis macroeconomicas mensais"
+    "Outros":              "grupo heterogeneo sem criterio de homogeneidade",
+    "Hospital":            "apenas 3 fundos com comportamento muito distinto",
+    "Varejo":              "apenas 3 fundos — amostra insuficiente para generalizacao",
+    "Titulos e Val. Mob.": "DY indexado ao spread dos CRIs — nao capturavel com variaveis macroeconomicas mensais",
+    "FOF":                 "DY dependente da carteira de outros FIIs e decisoes do gestor — nao capturavel com variaveis publicas",
 }
 
 PANDEMIA_INI = "2020-03"
@@ -94,23 +95,6 @@ def adicionar_indicador(df: pd.DataFrame, indicador: dict, col_nome: str) -> pd.
     mes_col = pd.to_datetime(df[COL_DATA]).dt.strftime("%Y-%m")
     df[col_nome] = mes_col.map(indicador)
     return df
-
-
-def normalizar_dy_por_fundo(df: pd.DataFrame) -> tuple:
-    """
-    Normaliza DY por fundo (z-score) para remover efeito de escala.
-    Retorna df normalizado e stats para desnormalizar depois.
-    """
-    stats = df.groupby(COL_SIGLA)[COL_DY].agg(["mean","std"]).rename(
-        columns={"mean":"dy_media","std":"dy_std"}
-    )
-    stats["dy_std"] = stats["dy_std"].replace(0, 1)
-    df = df.copy()
-    df[COL_DY] = df.apply(
-        lambda r: (r[COL_DY] - stats.loc[r[COL_SIGLA],"dy_media"]) / stats.loc[r[COL_SIGLA],"dy_std"],
-        axis=1
-    )
-    return df, stats
 
 
 def construir_lags(df: pd.DataFrame) -> pd.DataFrame:
@@ -170,12 +154,6 @@ def treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=False):
     print(f"{'─'*58}")
 
     df_work = df_seg.copy()
-
-    # Shoppings: normaliza DY por fundo para remover dispersao de escala
-    stats_norm = None
-    if seg == "Shoppings":
-        df_work, stats_norm = normalizar_dy_por_fundo(df_work)
-        print(f"  + DY normalizado por fundo (z-score) — {df_work[COL_SIGLA].nunique()} fundos")
 
     # Remove pandemia se solicitado
     if excluir_pandemia:
@@ -270,7 +248,6 @@ def treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=False):
         "cat_cols":         cat_cols,
         "indicador_macro":  col_macro,
         "excluiu_pandemia": excluir_pandemia,
-        "stats_norm": stats_norm is not None,
         "metricas": {
             n: {
                 "r2":    round(m["r2"], 4),
