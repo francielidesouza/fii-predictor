@@ -163,11 +163,9 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
     <div>
       <div class="header-title">
         Preditor de DY — FIIs
-        <span class="badge badge-gb">Gradient Boosting</span>
-        <span class="badge badge-ml">R²=0.705</span>
-        <span class="badge badge-new">v4 · DY+P/VP+SELIC</span>
+        <span class="badge badge-ml">v4 · Random Forest + XGBoost</span>
       </div>
-      <div class="header-sub">Modelo treinado 2019–2024 · brapi.dev Pro + BCB · 107 fundos</div>
+      <div class="header-sub">Modelo treinado 2019–2024 · brapi.dev Pro · 62 fundos · 4 segmentos</div>
     </div>
   </div>
 
@@ -178,8 +176,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
 
   <div class="tabs">
     <button class="tab active"  onclick="switchTab('manual')">Fundo individual</button>
-    <button class="tab"         onclick="switchTab('top3')">Top 3 FIIs</button>
-    <button class="tab"         onclick="switchTab('portfolio')">Meu portfólio</button>
+        <button class="tab"         onclick="switchTab('portfolio')">Meu portfólio</button>
   </div>
 
   <!-- ── ABA 1: Fundo Individual ─────────────────────────────────────────── -->
@@ -224,7 +221,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
       <div class="grid3">
         <div class="field"><label>DY atual (% a.m.)</label><input type="number" id="dy" value="0.82" min="0" max="5" step="0.01"></div>
         <div class="field"><label>P/VP</label><input type="number" id="pvp" value="0.91" min="0.1" max="3" step="0.01"></div>
-        <div class="field"><label>SELIC atual (% a.m.)</label><input type="number" id="selic_atual" value="1.04" min="0" max="5" step="0.01"></div>
+        
       </div>
       <button class="btn" id="btnPredict" onclick="predictSingle()">
         <span id="btnText">Gerar previsão</span>
@@ -241,10 +238,10 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="result-row" id="result-cards"></div>
       </div>
 
-      <!-- GRÁFICO 1: DY + P/VP + SELIC ao longo do tempo -->
+      <!-- GRÁFICO 1: DY + P/VP ao longo do tempo -->
       <div class="card">
-        <div class="section-label">Comportamento histórico + previsão — DY, P/VP e SELIC</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Visualize como o DY do fundo se relaciona com P/VP e SELIC ao longo do tempo. Linha tracejada = previsão do modelo.</div>
+        <div class="section-label">Comportamento histórico + previsão — DY e P/VP</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Visualize como o DY do fundo se relaciona com P/VP ao longo do tempo. Linha tracejada = previsão do modelo.</div>
         <div class="chart-wrap-tall"><canvas id="mainChart"></canvas></div>
         <div class="chart-legend" id="mainLegend"></div>
       </div>
@@ -261,7 +258,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">O que de fato ocorreu em 2025 (dados reais da brapi.dev) versus o que o modelo teria previsto. Permite avaliar a acurácia da predição.</div>
         <div class="chart-wrap-tall"><canvas id="vsChart"></canvas></div>
         <div id="vsMetrics"></div>
-        <div class="tip">Dados reais de 2025: brapi.dev Pro (extraídos em abr/2026). Previsão gerada pelo modelo treinado em 2019–2024. Discrepâncias refletem eventos não capturados pelo modelo (ex: variações abruptas de SELIC, gestão do fundo).</div>
+        <div class="tip">Dados reais de 2025: brapi.dev Pro (extraídos em abr/2026). Previsão gerada pelo modelo treinado em 2019–2024. Discrepâncias refletem eventos não capturados pelo modelo (ex: decisões do gestor, eventos atípicos de mercado).</div>
       </div>
 
       <!-- GRÁFICO 3: Com pandemia vs Sem pandemia -->
@@ -300,27 +297,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
     </div>
   </div>
 
-  <!-- ── ABA 2: Top 3 FIIs ──────────────────────────────────────────────── -->
-  <div id="tab-top3" class="tab-panel">
-    <div class="card">
-      <div class="section-label">Top 3 FIIs por rentabilidade — dataset 2019–2024</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:1rem;line-height:1.6">
-        Ranking baseado no DY médio mensal histórico de jan/2019 a dez/2024, calculado a partir dos dados do dataset de treino (brapi.dev Pro + BCB). Apenas fundos com 60+ meses de dados completos foram considerados.
-      </div>
-      <div class="top3-grid" id="top3Cards"></div>
-    </div>
-    <div class="card">
-      <div class="section-label">Evolução do DY — Top 3 FIIs (2019–2024)</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Série histórica anual média de DY dos três melhores fundos do dataset.</div>
-      <div class="chart-wrap-tall"><canvas id="top3Chart"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="section-label">Por que esses fundos lideram?</div>
-      <div style="font-size:13px;color:var(--text2);line-height:1.8" id="top3Why"></div>
-    </div>
-  </div>
-
-  <!-- ── ABA 3: Portfólio ───────────────────────────────────────────────── -->
+  <!-- ── ABA 2: Portfólio ───────────────────────────────────────────────── -->
   <div id="tab-portfolio" class="tab-panel">
     <div class="card">
       <div class="section-label">Formato esperado — DatasetUsuario.xlsx</div>
@@ -386,8 +363,8 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
   </div>
 
   <footer>
-    TCC — Predição de FIIs com Machine Learning v4 · Gradient Boosting · Dataset 2019–2024 · 107 fundos<br>
-    Fontes: brapi.dev Pro + BCB SGS · Não constitui recomendação de investimento.
+    TCC — Predição de FIIs com Machine Learning v4 · Random Forest + XGBoost · Dataset 2019–2024<br>
+    Fonte: brapi.dev Pro · Não constitui recomendação de investimento.
   </footer>
 </div>
 
@@ -489,11 +466,10 @@ let chartInst=null, vsChartInst=null, pandemiaChartInst=null, top3ChartInst=null
 let apiFundos={}, apiMeta={};
 
 function switchTab(tab){
-  ['manual','top3','portfolio'].forEach((t,i)=>{
+  ['manual','portfolio'].forEach((t,i)=>{
     document.querySelectorAll('.tab')[i].classList.toggle('active',t===tab);
     document.getElementById('tab-'+t).classList.toggle('active',t===tab);
   });
-  if(tab==='top3') renderTop3();
 }
 
 async function initApi(){
@@ -502,7 +478,7 @@ async function initApi(){
     if(r.ok){
       const h=await r.json(); apiMeta=h;
       document.getElementById('apiDot').classList.add('online');
-      document.getElementById('apiStatus').textContent=`API online · ${h.n_fundos||107} fundos · Modelo: ${h.melhor_modelo||'Gradient Boosting'}`;
+      document.getElementById('apiStatus').textContent=`API online · ${h.n_fundos||107} fundos · Modelo: Random Forest + XGBoost`;
     } else throw new Error();
   }catch{
     document.getElementById('apiDot').classList.add('offline');
@@ -648,7 +624,7 @@ async function predictSingle(){
     </div>`;
   }).join('');
 
-  // ── GRÁFICO 1: DY + P/VP + SELIC histórico + previsão (hz meses completos) ──
+  // ── GRÁFICO 1: DY + P/VP histórico + previsão ──
   const anos=['2019','2020','2021','2022','2023','2024',...futLabels];
   const dyHist=(DY_HIST[sig]||Array(6).fill(dy)).map(v=>+(v*100).toFixed(4));
   const pvpHist=(PVP_HIST[sig]||Array(6).fill(pvp));
@@ -696,7 +672,7 @@ async function predictSingle(){
   document.getElementById('m-mape').textContent=met.mape!=null?met.mape.toFixed(1)+'%':'12.3%';
 
   // Importância
-  const imp=[{l:'DY lag 1',v:28,c:'#1D9E75'},{l:'DY lag 2',v:18,c:'#1D9E75'},{l:'Mês (sazonalidade)',v:14,c:'#378ADD'},{l:'Segmento',v:12,c:'#9B59B6'},{l:'DY lag 3',v:11,c:'#1D9E75'},{l:'P/VP',v:9,c:'#5DCAA5'},{l:'SELIC',v:6,c:'#EF9F27'},{l:'Trimestre',v:2,c:'#378ADD'}];
+  const imp=[{l:'DY lag 1',v:34,c:'#1D9E75'},{l:'DY lag 2',v:22,c:'#1D9E75'},{l:'DY lag 3',v:14,c:'#1D9E75'},{l:'Segmento',v:16,c:'#9B59B6'},{l:'P/VP',v:14,c:'#5DCAA5'}];
   document.getElementById('imp-bars').innerHTML=imp.map(f=>`<div class="imp-row"><span class="imp-label">${f.l}</span><div class="imp-track"><div class="imp-fill" style="width:${f.v}%;background:${f.c}"></div></div><span class="imp-val">${f.v}%</span></div>`).join('');
 
   // Recomendação
@@ -704,7 +680,7 @@ async function predictSingle(){
   const trend=preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
   document.getElementById('rec-box').innerHTML=`<strong>${sig}</strong> (${seg}) — DY médio previsto: <strong>${avg}% a.a.</strong> · ${trend}.<br><br>
     <div class="rec-highlight">P/VP de ${pvp.toFixed(2)}: ${pvp<1?'<strong>Abaixo do valor patrimonial</strong> — potencial oportunidade de compra com desconto.':'Acima do valor patrimonial — atenção ao prêmio pago.'}</div>
-    SELIC atual de ${(selic_i*100).toFixed(2)}% a.m. (${(selic_i*1200).toFixed(1)}% a.a.): ${dyPrevisto*12>selic_i*12?'<strong>DY previsto supera a SELIC</strong> — FII potencialmente atrativo.':'DY abaixo da SELIC — avaliar se o prêmio de risco justifica o investimento.'}<br><br>
+
     <span style="font-size:11px;color:var(--text3)">Modelo: ${modelo} · Não constitui recomendação de investimento.</span>`;
 
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -801,7 +777,7 @@ function renderTop3(){
     <strong>HGLG11</strong> lidera graças aos contratos atípicos de longo prazo com grandes operadores logísticos, que garantem previsibilidade de renda. O segmento Logístico obteve o melhor R² do modelo (0.37), confirmando que o padrão de DY desses fundos é o mais capturável pelas variáveis disponíveis.<br><br>
     <strong>XPML11</strong> representa o segmento Shoppings, que apresenta sazonalidade marcada em novembro e dezembro (alta temporada do varejo). O modelo aplica normalização z-score por fundo para capturar a variação relativa do DY, obtendo R²=0.07 positivo.<br><br>
     <strong>KNRI11</strong> é o principal representante do segmento Híbrido, que combina imóveis logísticos e corporativos. A diversificação reduz a volatilidade do DY e o modelo obteve R²=0.21 para esse segmento.<br><br>
-    <em style="font-size:11px;color:var(--text3)">Ranking baseado no DY médio mensal do dataset de treino (brapi.dev Pro + BCB, jan/2019–dez/2024). Não constitui recomendação de investimento.</em>`;
+    <em style="font-size:11px;color:var(--text3)">Ranking baseado no DY médio mensal do dataset de treino (brapi.dev Pro, jan/2019–dez/2024). Não constitui recomendação de investimento.</em>`;
 }
 
 // ── Portfólio ─────────────────────────────────────────────────────────────────
