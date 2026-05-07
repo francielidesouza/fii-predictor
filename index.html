@@ -228,6 +228,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="spinner" id="spinner"></div>
       </button>
       <div class="error-msg" id="errorMsg"></div>
+      <div id="avisoFundo" style="display:none;margin-top:10px;padding:10px 12px;background:var(--amber-bg);border:0.5px solid var(--amber-text);border-radius:var(--radius-sm);font-size:12px;color:var(--amber-text);line-height:1.5"></div>
     </div>
 
     <div id="results" style="display:none">
@@ -372,6 +373,22 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
 const API = 'https://fii-predictor.onrender.com';
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const FUND_COLORS = ['#1D9E75','#378ADD','#E85D24','#9B59B6','#F39C12','#E74C3C','#2ECC71','#3498DB'];
+
+// Fundos que fizeram parte do dataset de treino (2019-2024)
+// Se o usuário inserir um fundo fora desta lista, o modelo usa o fallback geral
+const FUNDOS_TREINO = new Set([
+  // Logístico
+  "HGLG11","XPLG11","VILG11","BRCO11","BTLG11","HLOG11","LGVT11","LVBI11","CXTL11","EURO11",
+  // Shoppings
+  "XPML11","VISC11","HSML11","HGBS11","MALL11","ABCP11","PQDP11","SHDP11","SHPH11",
+  "VPSI11","VSHO11","WPLZ11","ELDO11","FIGS11","FLRP11",
+  // Híbrido
+  "KNRI11","ALZR11","BRCR11","RBRD11","PATB11","VERE11","BRRI11","MXRF11",
+  // Escritórios
+  "BBPO11","HGRE11","CBOP11","CEOC11","CNES11","GTWR11","RNGO11","TRNT11","FLMA11","FPAB11",
+  // Lajes Corporativas
+  "EDGA11","FPNG11",
+]);
 
 const SEG_FIIS = {
   'Logístico':['HGLG11','XPLG11','VILG11','BRCO11','BTLG11','HLOG11'],
@@ -580,7 +597,7 @@ function renderVsChart(real2025, pred2025all, sig, hz, semDadosReais=false){
 async function predictSingle(){
   const dy=parseFloat(document.getElementById('dy').value)/100;
   const pvp=parseFloat(document.getElementById('pvp').value);
-  const selic_i=parseFloat(document.getElementById('selic_atual').value)/100;
+  const selic_i = 0.0104; // SELIC dez/2024 — fixo internamente
   const sig=document.getElementById('sigla').value;
   const seg=document.getElementById('segmento').value;
   const hz=parseInt(document.getElementById('horizonte').value);
@@ -592,11 +609,24 @@ async function predictSingle(){
   errEl.style.display='none';
   document.getElementById('results').style.display='none';
 
+  // Alerta se o fundo não fez parte do dataset de treino
+  const foraDoTreino = !FUNDOS_TREINO.has(sig);
+  const avisoEl = document.getElementById('avisoFundo');
+  if(avisoEl) {
+    if(foraDoTreino) {
+      avisoEl.style.display='block';
+      avisoEl.innerHTML=`⚠️ <strong>${sig}</strong> não fez parte do dataset de treino (2019–2024). 
+        O modelo usará o padrão geral do segmento <strong>${seg}</strong> — a precisão pode ser menor.`;
+    } else {
+      avisoEl.style.display='none';
+    }
+  }
+
   let dyPrevisto=dy*1.015; // fallback se API offline
   try{
     const res=await fetch(API+'/predict',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sigla:sig,dy_lag1:dy,dy_lag2:dy,dy_lag3:dy,modelo,data_referencia:dataRef+'-01'}),
+      body:JSON.stringify({sigla:sig,segmento:seg,dy_lag1:dy,dy_lag2:dy,dy_lag3:dy,pvp,modelo,data_referencia:dataRef+'-01'}),
       signal:AbortSignal.timeout(60000)
     });
     if(res.ok){const d=await res.json();dyPrevisto=d.dy_previsto;}
@@ -845,7 +875,7 @@ async function predictPortfolio(){
         signal:AbortSignal.timeout(30000)});
       if(res.ok){const d=await res.json();dyPrev=d.dy_previsto;}
     }catch{}
-    fundResults.push({sigla,segmento,tipo,color:FUND_COLORS[i%FUND_COLORS.length],preds12:buildSeries(dyPrev,12),ok:true});
+    fundResults.push({sigla,segmento,tipo,color:FUND_COLORS[i%FUND_COLORS.length],preds12:buildSeries(dyPrev,12),ok:true,foraDoTreino:!FUNDOS_TREINO.has(sigla)});
   }
 
   setLoading('btnPortfolio','btnPortfolioText','spinnerPortfolio',false,`Analisar portfólio (${portfolioData.length} fundos)`);
@@ -896,7 +926,8 @@ function renderRanking(h){
     const cls=f.avg>0.0085?'dy-high':f.avg>0.007?'dy-mid':'dy-low';
     const label=f.avg>0.0085?'DY alto':f.avg>0.007?'DY moderado':'DY baixo';
     return`<tr><td><span class="rank-badge ${rc}">${i+1}</span></td>
-      <td><span class="fundo-dot" style="background:${f.color}"></span><strong>${f.sigla}</strong></td>
+      <td><span class="fundo-dot" style="background:${f.color}"></span><strong>${f.sigla}</strong>
+      ${f.foraDoTreino?'<span style="font-size:10px;color:var(--amber-text);margin-left:4px" title="Fundo não estava no dataset de treino — precisão pode ser menor">⚠️ fora do treino</span>':''}</td>
       <td style="font-size:12px;color:var(--text3)">${f.segmento||'—'}</td>
       <td>${(f.avg*100).toFixed(3)}%</td><td><strong>${(f.avg*12*100).toFixed(2)}%</strong></td>
       <td><span class="dy-pill ${cls}">${label}</span></td></tr>`;
