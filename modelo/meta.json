@@ -1,19 +1,308 @@
 {
-  "num_cols": [
-    "DY_lag1",
-    "DY_lag2",
-    "DY_lag3",
-    "SELIC",
-    "IFIX"
-  ],
-  "cat_cols": [
-    "Segmento",
-    "Tipo_do_Fundo"
-  ],
-  "col_sigla": "Sigla",
-  "col_dy": "Dividendos_Yield",
+  "versao": "4.0-por-segmento-cdi",
+  "estrategia": "Modelo por segmento | CDI para Titulos | SELIC para demais",
+  "features": "DY_lag1, DY_lag2, DY_lag3, PVP_lag1, CDI/SELIC, Tipo_do_Fundo",
+  "pandemia_excluida": "2020-03 a 2020-12",
+  "segmentos_excluidos": {
+    "Outros": "grupo heterogeneo sem criterio de homogeneidade",
+    "Hospital": "apenas 3 fundos com comportamento muito distinto",
+    "Varejo": "apenas 3 fundos — amostra insuficiente para generalizacao",
+    "Titulos e Val. Mob.": "DY indexado ao spread dos CRIs — nao capturavel com variaveis macroeconomicas mensais"
+  },
+  "modelos_por_segmento": {
+    "Escritorios": {
+      "melhor": "Random Forest",
+      "num_cols": [
+        "DY_lag1",
+        "DY_lag2",
+        "DY_lag3",
+        "PVP_lag1",
+        "SELIC"
+      ],
+      "cat_cols": [],
+      "indicador_macro": "SELIC",
+      "excluiu_pandemia": false,
+      "stats_norm": false,
+      "metricas": {
+        "Random Forest": {
+          "r2": 0.1231,
+          "mae": 0.001022,
+          "mape": 36.84,
+          "cv_r2": -1.1568
+        },
+        "Gradient Boosting": {
+          "r2": 0.1199,
+          "mae": 0.001093,
+          "mape": 46.23,
+          "cv_r2": -4.9927
+        },
+        "XGBoost": {
+          "r2": 0.1142,
+          "mae": 0.001148,
+          "mape": 49.4,
+          "cv_r2": -3.6604
+        }
+      },
+      "arquivo": "modelo_escritorios.pkl",
+      "n_fundos": 11,
+      "sem_pandemia": {
+        "melhor": "Random Forest",
+        "num_cols": [
+          "DY_lag1",
+          "DY_lag2",
+          "DY_lag3",
+          "PVP_lag1",
+          "SELIC"
+        ],
+        "cat_cols": [],
+        "indicador_macro": "SELIC",
+        "excluiu_pandemia": true,
+        "stats_norm": false,
+        "metricas": {
+          "Random Forest": {
+            "r2": 0.1072,
+            "mae": 0.001051,
+            "mape": 35.31,
+            "cv_r2": 0.0271
+          },
+          "Gradient Boosting": {
+            "r2": 0.1048,
+            "mae": 0.001094,
+            "mape": 35.35,
+            "cv_r2": -0.9091
+          },
+          "XGBoost": {
+            "r2": 0.1055,
+            "mae": 0.001137,
+            "mape": 40.3,
+            "cv_r2": -0.216
+          }
+        }
+      }
+    },
+    "Hibrido": {
+      "melhor": "XGBoost",
+      "num_cols": [
+        "DY_lag1",
+        "DY_lag2",
+        "DY_lag3",
+        "PVP_lag1",
+        "SELIC"
+      ],
+      "cat_cols": [
+        "Tipo_do_Fundo"
+      ],
+      "indicador_macro": "SELIC",
+      "excluiu_pandemia": false,
+      "stats_norm": false,
+      "metricas": {
+        "Random Forest": {
+          "r2": 0.1801,
+          "mae": 0.001491,
+          "mape": 23.03,
+          "cv_r2": -1.7298
+        },
+        "Gradient Boosting": {
+          "r2": 0.1544,
+          "mae": 0.001416,
+          "mape": 20.69,
+          "cv_r2": -2.3269
+        },
+        "XGBoost": {
+          "r2": 0.2084,
+          "mae": 0.001411,
+          "mape": 20.81,
+          "cv_r2": -1.7075
+        }
+      },
+      "arquivo": "modelo_hibrido.pkl",
+      "n_fundos": 8,
+      "sem_pandemia": {
+        "melhor": "XGBoost",
+        "num_cols": [
+          "DY_lag1",
+          "DY_lag2",
+          "DY_lag3",
+          "PVP_lag1",
+          "SELIC"
+        ],
+        "cat_cols": [
+          "Tipo_do_Fundo"
+        ],
+        "indicador_macro": "SELIC",
+        "excluiu_pandemia": true,
+        "stats_norm": false,
+        "metricas": {
+          "Random Forest": {
+            "r2": 0.1459,
+            "mae": 0.001424,
+            "mape": 20.34,
+            "cv_r2": -3.3077
+          },
+          "Gradient Boosting": {
+            "r2": 0.1195,
+            "mae": 0.00152,
+            "mape": 21.27,
+            "cv_r2": -4.5132
+          },
+          "XGBoost": {
+            "r2": 0.1508,
+            "mae": 0.001454,
+            "mape": 20.34,
+            "cv_r2": -2.698
+          }
+        }
+      }
+    },
+    "Logistico": {
+      "melhor": "Random Forest",
+      "num_cols": [
+        "DY_lag1",
+        "DY_lag2",
+        "DY_lag3",
+        "PVP_lag1",
+        "SELIC"
+      ],
+      "cat_cols": [],
+      "indicador_macro": "SELIC",
+      "excluiu_pandemia": false,
+      "stats_norm": false,
+      "metricas": {
+        "Random Forest": {
+          "r2": 0.3693,
+          "mae": 0.000927,
+          "mape": 16.64,
+          "cv_r2": 0.0103
+        },
+        "Gradient Boosting": {
+          "r2": 0.1283,
+          "mae": 0.001204,
+          "mape": 21.85,
+          "cv_r2": -0.3836
+        },
+        "XGBoost": {
+          "r2": 0.174,
+          "mae": 0.001113,
+          "mape": 20.14,
+          "cv_r2": -0.3735
+        }
+      },
+      "arquivo": "modelo_logistico.pkl",
+      "n_fundos": 10,
+      "sem_pandemia": {
+        "melhor": "Random Forest",
+        "num_cols": [
+          "DY_lag1",
+          "DY_lag2",
+          "DY_lag3",
+          "PVP_lag1",
+          "SELIC"
+        ],
+        "cat_cols": [],
+        "indicador_macro": "SELIC",
+        "excluiu_pandemia": true,
+        "stats_norm": false,
+        "metricas": {
+          "Random Forest": {
+            "r2": 0.3028,
+            "mae": 0.000964,
+            "mape": 17.63,
+            "cv_r2": -0.0325
+          },
+          "Gradient Boosting": {
+            "r2": 0.0368,
+            "mae": 0.001191,
+            "mape": 22.18,
+            "cv_r2": -0.3857
+          },
+          "XGBoost": {
+            "r2": -0.0126,
+            "mae": 0.001212,
+            "mape": 22.27,
+            "cv_r2": -0.3653
+          }
+        }
+      }
+    },
+    "Shoppings": {
+      "melhor": "Random Forest",
+      "num_cols": [
+        "DY_lag1",
+        "DY_lag2",
+        "DY_lag3",
+        "PVP_lag1",
+        "SELIC"
+      ],
+      "cat_cols": [],
+      "indicador_macro": "SELIC",
+      "excluiu_pandemia": false,
+      "stats_norm": true,
+      "metricas": {
+        "Random Forest": {
+          "r2": 0.0671,
+          "mae": 0.42566,
+          "mape": 145.79,
+          "cv_r2": 0.3877
+        },
+        "Gradient Boosting": {
+          "r2": -0.0179,
+          "mae": 0.476752,
+          "mape": 163.51,
+          "cv_r2": 0.316
+        },
+        "XGBoost": {
+          "r2": 0.0454,
+          "mae": 0.444977,
+          "mape": 157.22,
+          "cv_r2": 0.3597
+        }
+      },
+      "arquivo": "modelo_shoppings.pkl",
+      "n_fundos": 15,
+      "sem_pandemia": {
+        "melhor": "Random Forest",
+        "num_cols": [
+          "DY_lag1",
+          "DY_lag2",
+          "DY_lag3",
+          "PVP_lag1",
+          "SELIC"
+        ],
+        "cat_cols": [],
+        "indicador_macro": "SELIC",
+        "excluiu_pandemia": true,
+        "stats_norm": true,
+        "metricas": {
+          "Random Forest": {
+            "r2": 0.056,
+            "mae": 0.442083,
+            "mape": 183.89,
+            "cv_r2": 0.1538
+          },
+          "Gradient Boosting": {
+            "r2": -0.0583,
+            "mae": 0.493771,
+            "mape": 222.2,
+            "cv_r2": -0.5563
+          },
+          "XGBoost": {
+            "r2": 0.0057,
+            "mae": 0.445512,
+            "mape": 186.55,
+            "cv_r2": -0.2549
+          }
+        }
+      }
+    }
+  },
+  "r2_medio_com_pandemia": 0.192,
+  "r2_medio_sem_pandemia": 0.1542,
+  "melhor_modelo": "por segmento",
   "modelos": [
     "Random Forest",
-    "Gradient Boosting"
-  ]
+    "Gradient Boosting",
+    "XGBoost"
+  ],
+  "n_fundos_total": 44,
+  "dataset": "dataset_fiis_2019_2024_brapi_v2.xlsx"
 }

@@ -1,1 +1,16 @@
 .env
+.ver_segmentos.py
+.ver_multicategoria.py
+.ver_fundos.py
+.treinar_modelov0.py
+.teste_brapi_reports.py
+.teste_api-v2.py
+.testar_cdi.py
+.montar_dataset.py
+.dataset_fiis_2019_2024.xlsx
+.corrigir_modelo.py
+.corrigir_dataset.py
+.comparar_modelos_2025.py
+.buscar_dado_real_2025.py
+.api_v3_backup.py
+

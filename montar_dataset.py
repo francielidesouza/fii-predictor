@@ -1,281 +1,308 @@
 """
 montar_dataset.py
 ─────────────────
-Monta dataset profissional de FIIs (jan/2019 – dez/2024).
+Monta dataset de FIIs (jan/2019 – dez/2024).
 
-Fontes (todas gratuitas, sem autenticação):
-  - Dividendos + Cotação → Yahoo Finance
-  - SELIC mensal         → Banco Central do Brasil API SGS série 4390
-  - IFIX mensal          → Banco Central do Brasil API SGS série 12466
+Fontes:
+  - Dados de Mercado API → FIIs, dividendos, cotações, SELIC
+  - BCB SGS 12466        → IFIX mensal
+  - CVM Informe Mensal   → Segmento e Tipo (fallback)
 
-Instalação:
-    pip install requests pandas openpyxl
+Colunas: Data, Sigla, Segmento, Tipo_do_Fundo,
+         Dividendos_Yield, SELIC, IFIX
+
+Pré-requisito .env:
+    DADOS_MERCADO_TOKEN=seu_token
+
+Uso:
+    python montar_dataset.py
+    python montar_dataset.py --minimo 48
 """
 
+import os, time, argparse
 import requests
 import pandas as pd
-import time
+from dotenv import load_dotenv
 
-PERIODO_INI = "2019-01"
-PERIODO_FIM = "2024-12"
+load_dotenv()
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-}
+DDM_TOKEN = os.getenv("DADOS_MERCADO_TOKEN", "")
+if not DDM_TOKEN:
+    raise RuntimeError(
+        "Token não encontrado.\n"
+        "Adicione no .env:\n"
+        "  DADOS_MERCADO_TOKEN=seu_token"
+    )
 
-FIIS = [
-    {"sigla": "BBAM11", "segmento": "Agencia Bancaria",              "tipo": "Fundo de Tijolo"},
-    {"sigla": "CXAG11", "segmento": "Agencia Bancaria",              "tipo": "Fundo de Tijolo"},
-    {"sigla": "GARE11", "segmento": "Galpoes",                       "tipo": "Fundo de Tijolo"},
-    {"sigla": "TRBL11", "segmento": "Galpoes",                       "tipo": "Fundo de Tijolo"},
-    {"sigla": "RBVA11", "segmento": "Hibrido",                       "tipo": "Fundo de Tijolo"},
-    {"sigla": "KISU11", "segmento": "Hibrido",                       "tipo": "Fundo de Tijolo"},
-    {"sigla": "SDIL11", "segmento": "Industria",                     "tipo": "Fundo de Tijolo"},
-    {"sigla": "HGRE11", "segmento": "Lajes Corporativas",            "tipo": "Fundo de Tijolo"},
-    {"sigla": "JSRE11", "segmento": "Lajes Corporativas",            "tipo": "Fundo de Tijolo"},
-    {"sigla": "BRCR11", "segmento": "Lajes Corporativas",            "tipo": "Fundo de Tijolo"},
-    {"sigla": "HGLG11", "segmento": "Logistico",                     "tipo": "Fundo de Tijolo"},
-    {"sigla": "XPLG11", "segmento": "Logistico",                     "tipo": "Fundo de Tijolo"},
-    {"sigla": "VILG11", "segmento": "Logistico",                     "tipo": "Fundo de Tijolo"},
-    {"sigla": "BRCO11", "segmento": "Logistico",                     "tipo": "Fundo de Tijolo"},
-    {"sigla": "MALL11", "segmento": "Shopping e Varejo",             "tipo": "Fundo de Tijolo"},
-    {"sigla": "XPML11", "segmento": "Shopping e Varejo",             "tipo": "Fundo de Tijolo"},
-    {"sigla": "VISC11", "segmento": "Shopping e Varejo",             "tipo": "Fundo de Tijolo"},
-    {"sigla": "HSML11", "segmento": "Shopping e Varejo",             "tipo": "Fundo de Tijolo"},
-    {"sigla": "HGCR11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Papel"},
-    {"sigla": "KNCR11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Papel"},
-    {"sigla": "MXRF11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Papel"},
-    {"sigla": "IRDM11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Papel"},
-    {"sigla": "CPTS11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Papel"},
-    {"sigla": "BCFF11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Fundos"},
-    {"sigla": "RBFF11", "segmento": "Titulos e Valores Mobiliarios", "tipo": "Fundo de Fundos"},
-    {"sigla": "HCTR11", "segmento": "Hibrido",                       "tipo": "Fundo de Desenvolvimento"},
-]
+DDM_BASE  = "https://api.dadosdemercado.com.br/v1"
+BCB_BASE  = "https://api.bcb.gov.br/dados/serie/bcdata.sgs"
 
-
-def safe_get(url, params=None):
-    try:
-        r = requests.get(url, params=params, headers=HEADERS, timeout=20)
-        if r.status_code != 200:
-            return None
-        r.json()
-        return r
-    except Exception:
-        return None
-
-
-def safe_json(r):
-    if r is None:
-        return None
-    try:
-        return r.json()
-    except Exception:
-        return None
-
-
-def to_float(val):
-    if val is None:
-        return None
-    try:
-        return float(str(val).replace(",", "."))
-    except Exception:
-        return None
-
-
-def ts_to_anomes(ts):
-    """Converte timestamp Unix para string 'YYYY-MM'."""
-    dt = pd.to_datetime(int(ts), unit="s")
-    return str(dt.to_period("M"))
-
-
-def dt_to_anomes(dt):
-    """Converte datetime para string 'YYYY-MM'."""
-    return str(pd.to_datetime(dt).to_period("M"))
-
+MES_INI = "2019-01"
+MES_FIM = "2024-12"
+MINIMO_MESES = 48
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. SELIC — BCB série 4390
+# Utilidades
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_selic():
-    print("📡 Buscando SELIC mensal do BCB (série 4390)...")
-    url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4390/dados"
-    r = safe_get(url, params={"formato": "json", "dataInicial": "01/01/2019", "dataFinal": "31/12/2024"})
-    data = safe_json(r)
-    if not data:
-        print("   ⚠ Falha. Preenchendo SELIC com NaN.")
+
+def mes_fmt(dt) -> str:
+    return pd.to_datetime(dt).strftime("%Y-%m")
+
+def safe_get(url, headers=None, params=None):
+    for tentativa in range(3):
+        try:
+            r = requests.get(url, headers=headers, params=params, timeout=30)
+            if r.status_code == 200:
+                return r
+            if r.status_code == 429:
+                print("⏳ rate limit...", end=" ")
+                time.sleep(10)
+            else:
+                return None
+        except Exception:
+            time.sleep(2)
+    return None
+
+def ddm_get(path, params=None):
+    """Requisição autenticada à API Dados de Mercado."""
+    return safe_get(
+        f"{DDM_BASE}{path}",
+        headers={"Authorization": f"Bearer {DDM_TOKEN}"},
+        params=params
+    )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. SELIC — Dados de Mercado /macro/selic
+# ─────────────────────────────────────────────────────────────────────────────
+
+def buscar_selic() -> dict:
+    print("📡 SELIC (Dados de Mercado)...", end=" ")
+    r = ddm_get("/macro/selic")
+    if not r:
+        print("⚠ falhou")
         return {}
-    resultado = {}
-    for item in data:
+    result = {}
+    for item in r.json():
         try:
-            dt = pd.to_datetime(item["data"], format="%d/%m/%Y")
-            mes = str(dt.to_period("M"))
-            val = to_float(item["valor"])
-            if val is not None:
-                resultado[mes] = round(val / 100, 6)
+            mes = mes_fmt(item["date"])
+            if MES_INI <= mes <= MES_FIM:
+                result[mes] = round(float(item["value"]) / 100, 6)
         except Exception:
             continue
-    print(f"   ✓ {len(resultado)} meses carregados")
-    return resultado
-
+    print(f"✓ {len(result)} meses")
+    return result
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. IFIX — BCB série 12466
+# 2. IFIX — BCB SGS 12466
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_ifix():
-    print("📡 Buscando IFIX mensal do BCB (série 12466)...")
-    url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12466/dados"
-    r = safe_get(url, params={"formato": "json", "dataInicial": "01/01/2019", "dataFinal": "31/12/2024"})
-    data = safe_json(r)
-    if not data:
-        print("   ⚠ Falha. Preenchendo IFIX com NaN.")
+
+def buscar_ifix() -> dict:
+    print("📡 IFIX (BCB)...", end=" ")
+    r = safe_get(f"{BCB_BASE}.12466/dados", params={
+        "formato": "json",
+        "dataInicial": "01/12/2018",
+        "dataFinal":   "31/12/2024"
+    })
+    if not r:
+        print("⚠ falhou")
         return {}
-    resultado = {}
-    for item in data:
+    serie = {}
+    for item in r.json():
         try:
-            dt = pd.to_datetime(item["data"], format="%d/%m/%Y")
-            mes = str(dt.to_period("M"))
-            if PERIODO_INI <= mes <= PERIODO_FIM:
-                val = to_float(item["valor"])
-                if val is not None:
-                    resultado[mes] = round(val, 4)
+            mes = mes_fmt(pd.to_datetime(item["data"], format="%d/%m/%Y"))
+            serie[mes] = float(item["valor"])
         except Exception:
             continue
-    print(f"   ✓ {len(resultado)} meses carregados")
-    return resultado
-
+    meses = sorted(serie.keys())
+    result = {}
+    for i in range(1, len(meses)):
+        m, ma = meses[i], meses[i-1]
+        if MES_INI <= m <= MES_FIM and serie[ma] > 0:
+            result[m] = round((serie[m] / serie[ma]) - 1, 6)
+    print(f"✓ {len(result)} meses")
+    return result
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. Yahoo Finance — cotação mensal + dividendos
+# 3. Lista de FIIs — Dados de Mercado /reits
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_yahoo(sigla):
-    ticker = f"{sigla}.SA"
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-    r = safe_get(url, params={"interval": "1mo", "range": "7y", "events": "dividends"})
-    data = safe_json(r)
-    if not data:
-        return {}, {}
 
-    try:
-        result = data["chart"]["result"][0]
-    except (KeyError, IndexError, TypeError):
-        return {}, {}
+def buscar_lista_fiis() -> list[dict]:
+    """Retorna lista de FIIs com ticker, segmento e tipo."""
+    print("📡 Lista de FIIs (Dados de Mercado)...", end=" ")
+    r = ddm_get("/reits")
+    if not r:
+        print("⚠ falhou")
+        return []
+    fiis = r.json()
+    # Filtra só os listados na B3
+    listados = [f for f in fiis if f.get("is_b3_listed")]
+    print(f"✓ {len(listados)} FIIs listados na B3")
+    return listados
 
-    # Cotações mensais
-    timestamps = result.get("timestamp", [])
-    closes = result.get("indicators", {}).get("adjclose", [{}])[0].get("adjclose", [])
-    cotacoes = {}
-    for ts, preco in zip(timestamps, closes):
-        if preco is None:
-            continue
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Dividendos — Dados de Mercado /reits/{ticker}/dividends
+# ─────────────────────────────────────────────────────────────────────────────
+
+def buscar_dividendos(ticker: str) -> dict:
+    """
+    Retorna {mes: valor_dividendo} para o período 2019–2024.
+    Soma dividendos do mesmo mês (alguns FIIs pagam 2x/mês).
+    """
+    r = ddm_get(f"/reits/{ticker}/dividends", params={"date_from": "2019-01-01"})
+    if not r:
+        return {}
+    result = {}
+    for item in r.json():
         try:
-            mes = ts_to_anomes(ts)
-            if PERIODO_INI <= mes <= PERIODO_FIM:
-                cotacoes[mes] = round(float(preco), 4)
+            # Usa payable_date como referência do mês
+            data = (
+                item.get("payable_date") or
+                item.get("record_date") or
+                item.get("ex_date", "")
+            )
+            if not data:
+                continue
+            mes = mes_fmt(data[:10])
+            if MES_INI <= mes <= MES_FIM:
+                val = float(item.get("amount") or 0)
+                if val > 0:
+                    result[mes] = result.get(mes, 0) + val
         except Exception:
             continue
+    return result
 
-    # Dividendos
-    divs_raw = result.get("events", {}).get("dividends", {})
-    dividendos = {}
-    for ts_str, info in divs_raw.items():
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. Cotações — Dados de Mercado /funds/{id}/quotes
+# ─────────────────────────────────────────────────────────────────────────────
+
+def buscar_cotacoes(fund_id: str) -> dict:
+    """
+    Retorna {mes: valor_cota} — cotação patrimonial mensal.
+    A API retorna valores em centavos, então dividimos por 100.
+    """
+    r = ddm_get(f"/funds/{fund_id}/quotes", params={
+        "period_init": "2019-01-01",
+        "period_end":  "2024-12-31"
+    })
+    if not r:
+        return {}
+    cotacoes_mes = {}
+    for item in r.json():
         try:
-            mes = ts_to_anomes(ts_str)
-            if PERIODO_INI <= mes <= PERIODO_FIM:
-                valor = float(info.get("amount", 0))
-                dividendos[mes] = dividendos.get(mes, 0) + valor
+            mes  = mes_fmt(item["date"])
+            cota = float(item.get("quote") or 0) / 100  # centavos → reais
+            if cota > 0 and MES_INI <= mes <= MES_FIM:
+                # Mantém a última cotação do mês
+                cotacoes_mes[mes] = cota
         except Exception:
             continue
-
-    return cotacoes, dividendos
-
+    return cotacoes_mes
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. P/VP — Yahoo Finance quoteSummary
+# 6. Montar dataset
 # ─────────────────────────────────────────────────────────────────────────────
-def buscar_pvp(sigla):
-    ticker = f"{sigla}.SA"
-    url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ticker}"
-    r = safe_get(url, params={"modules": "defaultKeyStatistics"})
-    data = safe_json(r)
-    if not data:
-        return None
-    try:
-        pvp = data["quoteSummary"]["result"][0]["defaultKeyStatistics"]["priceToBook"]["raw"]
-        return round(float(pvp), 4)
-    except Exception:
-        return None
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. Montar dataset
-# ─────────────────────────────────────────────────────────────────────────────
-def montar_dataset():
-    meses = [str(m) for m in pd.period_range(PERIODO_INI, PERIODO_FIM, freq="M")]
+def montar_dataset(minimo_meses: int = MINIMO_MESES):
+    meses_periodo = [str(m) for m in pd.period_range(MES_INI, MES_FIM, freq="M")]
 
     selic = buscar_selic()
     ifix  = buscar_ifix()
+    fiis  = buscar_lista_fiis()
+
+    if not fiis:
+        print("\n❌ Não foi possível obter a lista de FIIs.")
+        return None
+
+    print(f"\n{'─'*58}")
+    print(f"📡 Processando {len(fiis)} FIIs | mínimo {minimo_meses} meses com DY")
+    print(f"{'─'*58}\n")
 
     todas_linhas = []
-    resumo = []
+    resumo       = []
 
-    for fii in FIIS:
-        sigla    = fii["sigla"]
-        segmento = fii["segmento"]
-        tipo     = fii["tipo"]
-        print(f"\n🔍 {sigla} ({segmento})...", end=" ", flush=True)
+    for fii in fiis:
+        ticker   = fii.get("b3_trade_name") or fii.get("trade_name", "")
+        segmento = fii.get("b3_segment") or fii.get("b3_subsector", "")
+        tipo     = fii.get("b3_subsector") or fii.get("b3_sector", "")
+        fund_id  = fii.get("id", "")
 
-        cotacoes, dividendos = buscar_yahoo(sigla)
-        time.sleep(0.5)
-        pvp = buscar_pvp(sigla)
+        if not ticker:
+            continue
+
+        print(f"  {ticker}...", end=" ", flush=True)
+
+        dividendos = buscar_dividendos(ticker)
+        time.sleep(0.3)
+        cotacoes   = buscar_cotacoes(fund_id) if fund_id else {}
         time.sleep(0.3)
 
         meses_com_dy = 0
-        for mes in meses:
-            preco = cotacoes.get(mes)
-            div   = dividendos.get(mes, 0)
-            dy    = round(div / preco, 6) if (preco and preco > 0 and div > 0) else None
+        for mes in meses_periodo:
+            div  = dividendos.get(mes)
+            cota = cotacoes.get(mes)
+            dy   = round(div / cota, 6) if (div and cota and cota > 0) else None
 
             todas_linhas.append({
                 "Data":             mes,
-                "Sigla":            sigla,
+                "Sigla":            ticker,
                 "Segmento":         segmento,
                 "Tipo_do_Fundo":    tipo,
                 "Dividendos_Yield": dy,
-                "P_VP":             pvp,
-                "Vacancia":         None,
                 "SELIC":            selic.get(mes),
                 "IFIX":             ifix.get(mes),
             })
             if dy:
                 meses_com_dy += 1
 
+        resumo.append({"sigla": ticker, "meses": meses_com_dy})
         print(f"✓ {meses_com_dy} meses com DY")
-        resumo.append({"sigla": sigla, "meses_com_dy": meses_com_dy})
 
+    # ── Filtra fundos com mínimo de meses ─────────────────────────────────────
+    aprovados = {r["sigla"] for r in resumo if r["meses"] >= minimo_meses}
     df = pd.DataFrame(todas_linhas)
-    df_completo = df.dropna(subset=["Dividendos_Yield"]).copy()
-    df_completo = df_completo.sort_values(["Sigla", "Data"]).reset_index(drop=True)
+    df = df[df["Sigla"].isin(aprovados)]
+    df = df.dropna(subset=["Dividendos_Yield"])
+    df = df.sort_values(["Sigla", "Data"]).reset_index(drop=True)
 
-    print(f"\n{'─'*50}")
-    print(f"📊 Dataset final: {len(df_completo)} linhas · {df_completo['Sigla'].nunique()} fundos")
+    if df.empty:
+        print(f"\n⚠ Nenhum fundo com {minimo_meses}+ meses. Tentando com 36...")
+        aprovados = {r["sigla"] for r in resumo if r["meses"] >= 36}
+        df = pd.DataFrame(todas_linhas)
+        df = df[df["Sigla"].isin(aprovados)]
+        df = df.dropna(subset=["Dividendos_Yield"])
+        df = df.sort_values(["Sigla", "Data"]).reset_index(drop=True)
 
-    print("\nFundos com menos de 12 meses de dados:")
-    for r in resumo:
-        if r["meses_com_dy"] < 12:
-            print(f"   {r['sigla']}: {r['meses_com_dy']} meses")
+    if df.empty:
+        print("\n❌ Dataset vazio.")
+        return None
 
-    print("\nDistribuição por segmento:")
-    print(df_completo.groupby("Segmento")["Sigla"].nunique().to_string())
+    # ── Relatório ─────────────────────────────────────────────────────────────
+    print(f"\n{'─'*58}")
+    print(f"📊 Dataset final: {len(df)} linhas · {df['Sigla'].nunique()} fundos")
+    print(f"   Período: {df['Data'].min()} → {df['Data'].max()}")
+    dy = df["Dividendos_Yield"]
+    print(f"   DY — média: {dy.mean():.4f} | min: {dy.min():.4f} | max: {dy.max():.4f}")
 
+    print(f"\n   Fundos por segmento:")
+    print(df.groupby("Segmento")["Sigla"].nunique()
+            .sort_values(ascending=False).to_string())
+
+    excluidos = [r for r in resumo if r["sigla"] not in aprovados]
+    print(f"\n   Excluídos: {len(excluidos)} fundos com menos de {minimo_meses} meses")
+
+    # ── Salvar ────────────────────────────────────────────────────────────────
     nome = "dataset_fiis_2019_2024.xlsx"
-    df_completo.to_excel(nome, index=False)
-    print(f"\n✅ Arquivo salvo: {nome}")
+    df.to_excel(nome, index=False)
+    print(f"\n✅ Salvo: {nome}")
+    print(f"\nAmostra (5 linhas):")
+    print(df.head(5).to_string(index=False))
 
-    print("\nAmostra (5 linhas):")
-    print(df_completo.head(5).to_string(index=False))
-
-    return df_completo
+    return df
 
 
 if __name__ == "__main__":
-    montar_dataset()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--minimo", type=int, default=MINIMO_MESES,
+                        help=f"Mínimo de meses com DY (padrão: {MINIMO_MESES})")
+    args = parser.parse_args()
+    montar_dataset(args.minimo)
