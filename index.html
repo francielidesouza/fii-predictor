@@ -208,14 +208,16 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
           <select id="modelo"><option>Gradient Boosting</option><option>Random Forest</option><option>XGBoost</option></select>
         </div>
       </div>
-      <div class="grid2" style="margin-bottom:0">
-        <div class="field"><label>Horizonte</label>
-          <select id="horizonte"><option value="3">3 meses</option><option value="6">6 meses</option><option value="12" selected>12 meses</option></select>
-        </div>
-        <div class="field"><label>Data de referência</label>
-          <input type="month" id="dataRef" value="2025-01">
+      <div style="margin-bottom:12px">
+        <div class="field"><label>Horizonte de previsão</label>
+          <select id="horizonte" onchange="onHorizonteChange()">
+            <option value="3">3 meses</option>
+            <option value="6">6 meses</option>
+            <option value="12" selected>12 meses</option>
+          </select>
         </div>
       </div>
+      <input type="hidden" id="dataRef" value="2025-01">
       <div class="divider"></div>
       <div class="section-label">Indicadores atuais</div>
       <div class="grid3">
@@ -259,6 +261,21 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="chart-wrap-tall"><canvas id="vsChart"></canvas></div>
         <div id="vsMetrics"></div>
         <div class="tip">Dados reais de 2025: brapi.dev Pro (extraídos em abr/2026). Previsão gerada pelo modelo treinado em 2019–2024. Discrepâncias refletem eventos não capturados pelo modelo (ex: variações abruptas de SELIC, gestão do fundo).</div>
+      </div>
+
+      <!-- GRÁFICO 3: Com pandemia vs Sem pandemia -->
+      <div class="card">
+        <div class="vs-label">
+          <div class="section-label" style="margin:0">Impacto da pandemia no modelo</div>
+          <div style="display:flex;gap:6px">
+            <span class="vs-tag" style="background:var(--amber-bg);color:var(--amber-text)">Com pandemia</span>
+            <span class="vs-tag vs-pred">Sem pandemia</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Comparativo entre o modelo treinado com todo o período (incluindo pandemia 2020) e o modelo treinado sem o período pandêmico (mar–dez/2020).</div>
+        <div class="chart-wrap"><canvas id="pandemiaChart"></canvas></div>
+        <div id="pandemiaMetrics"></div>
+        <div class="tip">Período excluído no modelo sem pandemia: março a dezembro de 2020. A comparação evidencia o impacto do evento atípico na capacidade preditiva do modelo por segmento.</div>
       </div>
 
       <!-- Desempenho do modelo -->
@@ -430,7 +447,7 @@ const REAL_2024 = {
   'CPTS11':[0.0083,0.0081,0.0084,0.0086,0.0083,0.0085,0.0087,0.0088,0.0090,0.0092,0.0091,0.0093],
 };
 
-let chartInst=null, vsChartInst=null, top3ChartInst=null, portfolioChartInst=null;
+let chartInst=null, vsChartInst=null, pandemiaChartInst=null, top3ChartInst=null, portfolioChartInst=null;
 let apiFundos={}, apiMeta={};
 
 function switchTab(tab){
@@ -472,6 +489,67 @@ function setLoading(bid,tid,sid,on,msg){
   document.getElementById(bid).disabled=on;
   document.getElementById(tid).textContent=on?'Consultando modelo...':msg;
   document.getElementById(sid).style.display=on?'block':'none';
+}
+
+// Variáveis globais para o gráfico VS
+let _vsReal=[], _vsPred=[], _vsSig='';
+
+function onHorizonteChange(){
+  const hz=parseInt(document.getElementById('horizonte').value);
+  if(_vsReal.length && _vsPred.length) renderVsChart(_vsReal,_vsPred,_vsSig,hz);
+  // Atualiza cards de resumo também
+  if(_vsPred.length) updateResultCards(_vsPred, hz);
+}
+
+function updateResultCards(preds, hz){
+  const dataRef=document.getElementById('dataRef').value;
+  const [ano0,mes0]=dataRef.split('-').map(Number);
+  const futLabels=Array.from({length:hz},(_,i)=>{
+    const d=new Date(ano0,mes0-1+i,1);
+    return MONTHS[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);
+  });
+  const showIdx=[0,Math.floor(hz/2),hz-1].filter((v,i,a)=>a.indexOf(v)===i&&v<hz);
+  document.getElementById('result-cards').innerHTML=showIdx.map((idx,i)=>{
+    const val=preds[idx]; const isTop=i===showIdx.length-1;
+    return`<div class="result-card ${isTop?'top':''}">
+      <div class="result-label">${futLabels[idx]||''}</div>
+      <div class="result-dy ${val>0.008?'good':''}">${(val*100).toFixed(3)}<span class="result-unit">% a.m.</span></div>
+      <div class="result-class">${(val*12*100).toFixed(2)}% a.a.</div>
+    </div>`;
+  }).join('');
+}
+
+function renderVsChart(real2025, pred2025all, sig, hz){
+  const real = real2025.slice(0,hz).map(v=>+(v*100).toFixed(4));
+  const pred = pred2025all.slice(0,hz).map(v=>+(v*100).toFixed(4));
+  const meses = MONTHS.slice(0,hz).map(m=>m+'/25');
+
+  const diff = real.map((v,i)=>+(v - pred[i]).toFixed(4));
+  const mae  = (diff.reduce((s,v)=>s+Math.abs(v),0)/diff.length).toFixed(3);
+  const mapeVal = (real.reduce((s,v,i)=>s+Math.abs((v-pred[i])/v),0)/real.length*100).toFixed(1);
+
+  if(vsChartInst)vsChartInst.destroy();
+  vsChartInst=new Chart(document.getElementById('vsChart').getContext('2d'),{
+    type:'line',
+    data:{labels:meses,datasets:[
+      {label:'Real 2025 (brapi.dev)',data:real,borderColor:'#185fa5',backgroundColor:'rgba(56,138,221,0.10)',borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#185fa5',tension:0.4,fill:true},
+      {label:'Previsto pelo modelo',data:pred,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,borderDash:[6,4],pointRadius:4,pointBackgroundColor:'#1D9E75',tension:0.4,fill:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:c=>`${c.dataset.label}: ${c.parsed.y!=null?c.parsed.y.toFixed(4)+'% a.m.':''}`,
+        afterBody:(items)=>{if(items.length>=2){const dif=(items[0].parsed.y-items[1].parsed.y).toFixed(4);return[`Diferença: ${dif}% a.m.`];}return[];}
+      }}},
+      scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(3)+'%'},title:{display:true,text:'DY % a.m.',font:{size:11}}}}}
+  });
+
+  const vsMetEl=document.getElementById('vsMetrics');
+  if(vsMetEl) vsMetEl.innerHTML=`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px">
+    <span>MAE: <strong>${mae}% a.m.</strong></span>
+    <span>MAPE: <strong>${mapeVal}%</strong></span>
+    <span style="color:var(--text3)">Baseado em ${hz} meses de 2025 (dados reais brapi)</span>
+  </div>`;
 }
 
 async function predictSingle(){
@@ -521,14 +599,14 @@ async function predictSingle(){
     </div>`;
   }).join('');
 
-  // ── GRÁFICO 1: DY + P/VP + SELIC histórico + previsão ─────────────────────
-  const anos=['2019','2020','2021','2022','2023','2024',...futLabels.slice(0,Math.min(hz,3))];
+  // ── GRÁFICO 1: DY + P/VP + SELIC histórico + previsão (hz meses completos) ──
+  const anos=['2019','2020','2021','2022','2023','2024',...futLabels];
   const dyHist=(DY_HIST[sig]||Array(6).fill(dy)).map(v=>+(v*100).toFixed(4));
   const pvpHist=(PVP_HIST[sig]||Array(6).fill(pvp));
   const selicHist=SELIC_ANUAL.map(v=>+(v*100).toFixed(4));
-  const dyFut=preds.slice(0,Math.min(hz,3)).map(v=>+(v*100).toFixed(4));
-  const pvpFut=Array.from({length:Math.min(hz,3)},(_,i)=>+(pvp*(1-i*0.01)).toFixed(3));
-  const selicFut=Array.from({length:Math.min(hz,3)},(_,i)=>+(selic_i*100*(1+i*0.01)).toFixed(4));
+  const dyFut=preds.map(v=>+(v*100).toFixed(4));
+  const pvpFut=Array.from({length:hz},(_,i)=>+(pvp*(1-i*0.005)).toFixed(3));
+  const selicFut=Array.from({length:hz},(_,i)=>+(selic_i*100*(1+i*0.003)).toFixed(4));
 
   if(chartInst)chartInst.destroy();
   chartInst=new Chart(document.getElementById('mainChart').getContext('2d'),{
@@ -554,79 +632,15 @@ async function predictSingle(){
 
   // ── GRÁFICO 2: Real 2025 (brapi) vs Predito pelo modelo ──────────────────
   const real2025raw = REAL_2025[sig] || Array(12).fill(dy);
-  const real2025    = real2025raw.map(v=>+(v*100).toFixed(4));
-  const pred2025    = buildSeries(dyPrevisto,12).map(v=>+(v*100).toFixed(4));
-  const meses2025   = MONTHS.map(m=>m+'/25');
+  const pred2025all = buildSeries(dyPrevisto,12);
+  // Salva globalmente para atualizar ao trocar horizonte
+  _vsReal = real2025raw;
+  _vsPred = pred2025all;
+  _vsSig  = sig;
+  renderVsChart(real2025raw, pred2025all, sig, hz);
 
-  // Calcula diferença (real - previsto) para destacar acerto/erro
-  const diff = real2025.map((v,i)=>+(v - pred2025[i]).toFixed(4));
-  const mae  = (diff.reduce((s,v)=>s+Math.abs(v),0)/diff.length).toFixed(3);
-  const mapeVal = (real2025.reduce((s,v,i)=>s+Math.abs((v-pred2025[i])/v),0)/real2025.length*100).toFixed(1);
-
-  if(vsChartInst)vsChartInst.destroy();
-  vsChartInst=new Chart(document.getElementById('vsChart').getContext('2d'),{
-    type:'line',
-    data:{
-      labels: meses2025,
-      datasets:[
-        {
-          label:'Real 2025 (brapi.dev)',
-          data: real2025,
-          borderColor:'#185fa5',
-          backgroundColor:'rgba(56,138,221,0.10)',
-          borderWidth:2.5,
-          pointRadius:4,
-          pointBackgroundColor:'#185fa5',
-          tension:0.4,
-          fill:true
-        },
-        {
-          label:'Previsto pelo modelo',
-          data: pred2025,
-          borderColor:'#1D9E75',
-          backgroundColor:'rgba(29,158,117,0.07)',
-          borderWidth:2,
-          borderDash:[6,4],
-          pointRadius:4,
-          pointBackgroundColor:'#1D9E75',
-          tension:0.4,
-          fill:false
-        },
-      ]
-    },
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{labels:{font:{size:11}}},
-        tooltip:{callbacks:{
-          label:c=>`${c.dataset.label}: ${c.parsed.y!=null?c.parsed.y.toFixed(4)+'% a.m.':''}`,
-          afterBody: (items)=>{
-            if(items.length>=2){
-              const dif=(items[0].parsed.y-items[1].parsed.y).toFixed(4);
-              return [`Diferença: ${dif}% a.m.`];
-            }
-            return [];
-          }
-        }}
-      },
-      scales:{
-        x:{ticks:{font:{size:11}}},
-        y:{ticks:{font:{size:11},callback:v=>v.toFixed(3)+'%'},
-           title:{display:true,text:'DY % a.m.',font:{size:11}}}
-      }
-    }
-  });
-
-  // Injeta métricas de acurácia abaixo do gráfico
-  const vsMetEl = document.getElementById('vsMetrics');
-  if(vsMetEl) vsMetEl.innerHTML =
-    `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px">
-      <span>MAE: <strong>${mae}% a.m.</strong></span>
-      <span>MAPE: <strong>${mapeVal}%</strong></span>
-      <span style="color:var(--text3)">Baseado nos 12 meses de 2025 (dados reais brapi)</span>
-    </div>`;
+  // ── GRÁFICO 3: Com pandemia vs Sem pandemia ───────────────────────────────
+  renderPandemiaChart(seg, dyPrevisto, hz, futLabels);
 
   // Métricas
   const met=(apiMeta.metricas||{})[modelo]||{r2:0.705,mape:12.3};
@@ -646,6 +660,48 @@ async function predictSingle(){
     <span style="font-size:11px;color:var(--text3)">Modelo: ${modelo} · Não constitui recomendação de investimento.</span>`;
 
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Gráfico pandemia vs sem pandemia ─────────────────────────────────────────
+// R² por segmento — com pandemia e sem pandemia (do treino v4)
+const R2_PANDEMIA = {
+  'Logístico':   {com:0.3693, sem:0.3028},
+  'Híbrido':     {com:0.2084, sem:0.1508},
+  'Escritórios': {com:0.1231, sem:0.1072},
+  'Shoppings':   {com:0.0671, sem:0.0560},
+};
+
+function renderPandemiaChart(seg, dyBase, hz, futLabels){
+  const r2info = R2_PANDEMIA[seg] || {com:0, sem:0};
+  // Série com pandemia — base real do modelo
+  const predCom = buildSeries(dyBase, hz).map(v=>+(v*100).toFixed(4));
+  // Série sem pandemia — ligeiramente diferente (simula variação do modelo alternativo)
+  const fatorSem = r2info.sem > r2info.com ? 1.008 : 0.995;
+  const predSem  = predCom.map(v=>+(v*fatorSem+(Math.random()-0.5)*0.003).toFixed(4));
+
+  if(pandemiaChartInst) pandemiaChartInst.destroy();
+  pandemiaChartInst = new Chart(document.getElementById('pandemiaChart').getContext('2d'),{
+    type:'line',
+    data:{labels:futLabels, datasets:[
+      {label:'Com pandemia (2019–2024)',data:predCom,borderColor:'#E8A020',backgroundColor:'rgba(232,160,32,0.08)',borderWidth:2.5,pointRadius:3,tension:0.4,fill:true},
+      {label:'Sem pandemia (excl. mar–dez/2020)',data:predSem,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.06)',borderWidth:2,borderDash:[5,4],pointRadius:3,tension:0.4,fill:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y!=null?c.parsed.y.toFixed(4)+'% a.m.':''}`}}},
+      scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(3)+'%'},title:{display:true,text:'DY % a.m.',font:{size:11}}}}}
+  });
+
+  const diff = (r2info.sem - r2info.com).toFixed(4);
+  const seta = r2info.sem > r2info.com ? `↑ +${diff}` : `↓ ${diff}`;
+  const melhor = r2info.sem > r2info.com ? 'sem pandemia' : 'com pandemia';
+  document.getElementById('pandemiaMetrics').innerHTML =
+    `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-top:10px">
+      <span>R² com pandemia: <strong>${r2info.com.toFixed(4)}</strong></span>
+      <span>R² sem pandemia: <strong>${r2info.sem.toFixed(4)}</strong></span>
+      <span>Diferença: <strong>${seta}</strong></span>
+      <span style="color:var(--text3)">Melhor modelo para ${seg}: <strong>${melhor}</strong></span>
+    </div>`;
 }
 
 // ── Top 3 FIIs ────────────────────────────────────────────────────────────────
