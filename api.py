@@ -1,32 +1,47 @@
 """
-api.py
-------
-API FastAPI para previsão de DY de FIIs.
-Sem vacância. Aceita SELIC e IFIX como campos opcionais.
+api.py v4
+---------
+API FastAPI para previsão de Dividend Yield de FIIs.
+Modelos treinados por segmento:
+    - Logistico    (Random Forest, SELIC)
+    - Hibrido      (XGBoost, SELIC)
+    - Escritorios  (Random Forest, SELIC)
+    - Shoppings    (Random Forest, SELIC, normalizado z-score por fundo)
+
+Segmentos excluidos e justificativa:
+    - Titulos e Val. Mob.: DY indexado ao spread dos CRIs, nao capturavel
+    - Hospital:            apenas 3 fundos com comportamento muito distinto
+    - Varejo:              apenas 3 fundos, amostra insuficiente
+    - Outros:              grupo heterogeneo sem criterio de homogeneidade
 
 Uso local:
     uvicorn api:app --reload --port 8000
 """
 
-import json
+import json, os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import httpx
 import joblib
 import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-MODEL_DIR = Path("modelo")
+load_dotenv()
+BRAPI_TOKEN = os.getenv("BRAPI_TOKEN") or os.getenv("API_TOKEN_BRAPI", "")
+BRAPI_BASE  = "https://brapi.dev/api"
+MODEL_DIR   = Path("modelo")
 
 app = FastAPI(
-    title="FII Predictor API",
-    description="Previsão de Dividend Yield para Fundos de Investimento Imobiliário",
-    version="2.0.0",
+    title="FII Predictor API v4",
+    description="Previsão de DY por segmento — Logístico, Híbrido, Escritórios, Shoppings",
+    version="4.0.0",
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,135 +49,77 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Segmentos disponíveis e suas configurações ────────────────────────────────
+SEGMENTOS_CONFIG = {
+    "Logistico":   {"macro": "SELIC", "normalizado": False},
+    "Hibrido":     {"macro": "SELIC", "normalizado": False},
+    "Escritorios": {"macro": "SELIC", "normalizado": False},
+    "Shoppings":   {"macro": "SELIC", "normalizado": True},
+}
+
+SEGMENTOS_EXCLUIDOS = {
+    "Titulos e Val. Mob.": "DY indexado ao spread dos CRIs — nao capturavel com variaveis macroeconomicas mensais",
+    "Hospital":            "apenas 3 fundos com comportamento muito distinto",
+    "Varejo":              "apenas 3 fundos — amostra insuficiente",
+    "Outros":              "grupo heterogeneo sem criterio de homogeneidade",
+}
+
+
+# ── Carregamento de artefatos ─────────────────────────────────────────────────
 
 def carregar_artefatos():
     meta_path = MODEL_DIR / "meta.json"
     if not meta_path.exists():
-        raise RuntimeError("modelo/meta.json não encontrado. Execute treinar_modelo.py primeiro.")
-    with open(meta_path) as f:
+        raise RuntimeError("modelo/meta.json nao encontrado. Execute treinar_modelo_v4.py primeiro.")
+
+    with open(meta_path, encoding="utf-8") as f:
         meta = json.load(f)
-    modelos = {}
-    for nome in meta["modelos"]:
-        slug = nome.lower().replace(" ", "_")
-        pkl = MODEL_DIR / f"{slug}.pkl"
+
+    # Carrega modelo por segmento
+    modelos_seg = {}
+    for seg in SEGMENTOS_CONFIG:
+        slug = seg.lower().replace(" ", "_").replace("/", "_").replace(".", "")
+        pkl  = MODEL_DIR / f"modelo_{slug}.pkl"
         if pkl.exists():
-            modelos[nome] = joblib.load(pkl)
+            modelos_seg[seg] = joblib.load(pkl)
+            print(f"[✓] {seg}: {pkl.name} ({pkl.stat().st_size/1024:.0f} KB)")
+        else:
+            print(f"[!] {seg}: {pkl} nao encontrado")
+
+    # Fallback geral
+    fallback = None
+    fallback_path = MODEL_DIR / "random_forest.pkl"
+    if fallback_path.exists():
+        fallback = joblib.load(fallback_path)
+        print(f"[✓] Fallback geral carregado")
+
+    # Fundos recentes
     fundos_path = MODEL_DIR / "fundos_recentes.csv"
-    fundos_df = pd.read_csv(fundos_path) if fundos_path.exists() else None
-    return meta, modelos, fundos_df
+    fundos_df   = pd.read_csv(fundos_path) if fundos_path.exists() else None
+
+    # Stats de normalizacao por fundo (para Shoppings)
+    # Os stats sao derivados do fundos_recentes.csv
+    stats_norm = None
+    if fundos_df is not None and "Dividendos_Yield" in fundos_df.columns:
+        # Reconstroi stats de normalizacao para Shoppings
+        df_shop = fundos_df[fundos_df.get("Segmento", pd.Series()) == "Shoppings"] if "Segmento" in fundos_df.columns else pd.DataFrame()
+        if not df_shop.empty:
+            stats_norm = df_shop.groupby("Sigla")["Dividendos_Yield"].agg(["mean","std"]).rename(
+                columns={"mean":"dy_media","std":"dy_std"}
+            )
+            stats_norm["dy_std"] = stats_norm["dy_std"].replace(0, 1)
+
+    return meta, modelos_seg, fallback, fundos_df, stats_norm
 
 
 try:
-    META, MODELOS, FUNDOS_DF = carregar_artefatos()
-    print(f"[✓] Modelos carregados: {list(MODELOS.keys())}")
+    META, MODELOS_SEG, FALLBACK, FUNDOS_DF, STATS_NORM = carregar_artefatos()
 except Exception as e:
     print(f"[!] Erro ao carregar artefatos: {e}")
-    META, MODELOS, FUNDOS_DF = {}, {}, None
+    META, MODELOS_SEG, FALLBACK, FUNDOS_DF, STATS_NORM = {}, {}, None, None, None
 
 
-class EntradaPredicao(BaseModel):
-    sigla: str          = Field(..., example="HGLG11")
-    dy_lag1: float      = Field(..., example=0.0082, description="DY mês anterior (decimal)")
-    dy_lag2: float      = Field(..., example=0.0079, description="DY 2 meses atrás (decimal)")
-    dy_lag3: float      = Field(..., example=0.0081, description="DY 3 meses atrás (decimal)")
-    p_vp: Optional[float]          = Field(None, example=1.05)
-    selic: Optional[float]         = Field(None, example=0.0092, description="SELIC do mês (decimal)")
-    ifix: Optional[float]          = Field(None, example=0.0058, description="Variação IFIX do mês (decimal)")
-    segmento: Optional[str]        = Field(None, example="Logistico")
-    tipo_do_fundo: Optional[str]   = Field(None, example="Fundo de Tijolo")
-    modelo: str = Field("Gradient Boosting", description="'Random Forest' ou 'Gradient Boosting'")
-
-
-class SaidaPredicao(BaseModel):
-    sigla: str
-    dy_previsto: float
-    modelo_usado: str
-    unidade: str = "decimal (% ao mês)"
-
-
-class InfoFundo(BaseModel):
-    sigla: str
-    dy_recente: Optional[float] = None
-    p_vp: Optional[float] = None
-    segmento: Optional[str] = None
-    tipo_do_fundo: Optional[str] = None
-
-
-@app.get("/", tags=["Status"])
-def raiz():
-    return {"status": "online", "modelos_disponiveis": list(MODELOS.keys()), "versao": "2.0.0"}
-
-
-@app.get("/health", tags=["Status"])
-def health():
-    return {"status": "ok", "modelos": len(MODELOS)}
-
-
-@app.get("/fundos", tags=["Dados"], response_model=list[InfoFundo])
-def listar_fundos():
-    if FUNDOS_DF is None:
-        return []
-    col_sigla = META.get("col_sigla", "Sigla")
-    col_dy    = META.get("col_dy", "Dividendos_Yield")
-    resultado = []
-    for _, row in FUNDOS_DF.iterrows():
-        resultado.append(InfoFundo(
-            sigla         = str(row.get(col_sigla, "")),
-            dy_recente    = _safe_float(row.get(col_dy)),
-            p_vp          = _safe_float(row.get("P_VP")),
-            segmento      = _safe_str(row.get("Segmento")),
-            tipo_do_fundo = _safe_str(row.get("Tipo_do_Fundo")),
-        ))
-    return resultado
-
-
-@app.post("/predict", tags=["Previsão"], response_model=SaidaPredicao)
-def prever(entrada: EntradaPredicao):
-    if not MODELOS:
-        raise HTTPException(status_code=503, detail="Nenhum modelo carregado.")
-
-    nome_modelo = entrada.modelo
-    if nome_modelo not in MODELOS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Modelo '{nome_modelo}' não disponível. Use: {list(MODELOS.keys())}"
-        )
-
-    pipe     = MODELOS[nome_modelo]
-    num_cols = META.get("num_cols", ["DY_lag1", "DY_lag2", "DY_lag3"])
-    cat_cols = META.get("cat_cols", [])
-
-    row = {
-        "DY_lag1": entrada.dy_lag1,
-        "DY_lag2": entrada.dy_lag2,
-        "DY_lag3": entrada.dy_lag3,
-    }
-
-    # Features opcionais — usa valor fornecido ou mediana do treino (NaN → preenchido no pipe)
-    if "P_VP" in num_cols:
-        row["P_VP"] = entrada.p_vp if entrada.p_vp is not None else np.nan
-    if "SELIC" in num_cols:
-        row["SELIC"] = entrada.selic if entrada.selic is not None else np.nan
-    if "IFIX" in num_cols:
-        row["IFIX"] = entrada.ifix if entrada.ifix is not None else np.nan
-    if "Segmento" in cat_cols:
-        row["Segmento"] = entrada.segmento or ""
-    if "Tipo_do_Fundo" in cat_cols:
-        row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or ""
-
-    X = pd.DataFrame([row])[num_cols + cat_cols]
-
-    try:
-        dy_previsto = float(pipe.predict(X)[0])
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na predição: {str(e)}")
-
-    return SaidaPredicao(
-        sigla        = entrada.sigla.upper(),
-        dy_previsto  = round(dy_previsto, 6),
-        modelo_usado = nome_modelo,
-    )
-
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _safe_float(val) -> Optional[float]:
     try:
@@ -171,11 +128,382 @@ def _safe_float(val) -> Optional[float]:
     except Exception:
         return None
 
-
 def _safe_str(val) -> Optional[str]:
     if val is None or (isinstance(val, float) and np.isnan(val)):
         return None
     return str(val).strip() or None
+
+def _normalizar_dy(dy: float, sigla: str) -> float:
+    """Aplica z-score para Shoppings usando stats do treino."""
+    if STATS_NORM is not None and sigla in STATS_NORM.index:
+        media = STATS_NORM.loc[sigla, "dy_media"]
+        std   = STATS_NORM.loc[sigla, "dy_std"]
+        return (dy - media) / std
+    # fallback: normaliza pela media geral de Shoppings
+    return dy
+
+def _desnormalizar_dy(dy_norm: float, sigla: str) -> float:
+    """Reverte z-score para Shoppings."""
+    if STATS_NORM is not None and sigla in STATS_NORM.index:
+        media = STATS_NORM.loc[sigla, "dy_media"]
+        std   = STATS_NORM.loc[sigla, "dy_std"]
+        return dy_norm * std + media
+    return dy_norm
+
+def _get_selic_atual() -> float:
+    """Retorna a SELIC mais recente disponivel no fundos_recentes.csv."""
+    if FUNDOS_DF is not None and "SELIC" in FUNDOS_DF.columns:
+        val = FUNDOS_DF["SELIC"].dropna().iloc[-1] if not FUNDOS_DF["SELIC"].dropna().empty else None
+        if val:
+            return float(val)
+    return 0.0104  # fallback dez/2024
+
+def _get_meta_segmento(seg: str) -> dict:
+    """Retorna metricas do segmento no meta.json."""
+    mps = META.get("modelos_por_segmento", {}) if META else {}
+    return mps.get(seg, {})
+
+def _get_num_cat_cols(seg: str) -> tuple:
+    """Retorna num_cols e cat_cols do segmento treinado."""
+    info = _get_meta_segmento(seg)
+    num_cols = info.get("num_cols", ["DY_lag1","DY_lag2","DY_lag3","PVP_lag1","SELIC"])
+    cat_cols = info.get("cat_cols", [])
+    return num_cols, cat_cols
+
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+
+class EntradaPredicao(BaseModel):
+    sigla:          str            = Field(...,  example="HGLG11")
+    segmento:       str            = Field(...,  example="Logistico",
+                                          description="Segmento do FII: Logistico, Hibrido, Escritorios, Shoppings")
+    dy_lag1:        float          = Field(...,  example=0.0082,  description="DY mes anterior (decimal)")
+    dy_lag2:        float          = Field(...,  example=0.0079,  description="DY 2 meses atras")
+    dy_lag3:        float          = Field(...,  example=0.0081,  description="DY 3 meses atras")
+    pvp:            Optional[float]= Field(None, example=0.91,    description="P/VP atual")
+    tipo_do_fundo:  Optional[str]  = Field(None, example="Tijolo")
+    data_referencia:Optional[str]  = Field(None, example="2025-01-01")
+    excluir_pandemia: bool         = Field(False, description="Usar modelo treinado sem pandemia")
+
+
+class SaidaPredicao(BaseModel):
+    sigla:           str
+    segmento:        str
+    dy_previsto:     float
+    dy_previsto_pct: float
+    dy_previsto_aa:  float
+    modelo_usado:    str
+    macro_usado:     str
+    normalizado:     bool
+    data_referencia: str
+    r2:              Optional[float] = None
+    mape:            Optional[float] = None
+    cv_r2:           Optional[float] = None
+
+
+class InfoFundo(BaseModel):
+    sigla:         str
+    dy_recente:    Optional[float] = None
+    dy_lag1:       Optional[float] = None
+    dy_lag2:       Optional[float] = None
+    dy_lag3:       Optional[float] = None
+    pvp:           Optional[float] = None
+    selic:         Optional[float] = None
+    segmento:      Optional[str]   = None
+    tipo_do_fundo: Optional[str]   = None
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@app.get("/", tags=["Status"])
+def raiz():
+    return {
+        "status":              "online",
+        "versao":              "4.0.0",
+        "segmentos_disponiveis": list(MODELOS_SEG.keys()),
+        "segmentos_excluidos": SEGMENTOS_EXCLUIDOS,
+        "modelos_carregados":  len(MODELOS_SEG),
+    }
+
+
+@app.get("/health", tags=["Status"])
+def health():
+    mps = META.get("modelos_por_segmento", {}) if META else {}
+    resumo = {}
+    for seg, info in mps.items():
+        melhor = info.get("melhor", "")
+        met    = info.get("metricas", {}).get(melhor, {})
+        resumo[seg] = {
+            "melhor_modelo": melhor,
+            "r2":    met.get("r2"),
+            "mae":   met.get("mae"),
+            "mape":  met.get("mape"),
+            "cv_r2": met.get("cv_r2"),
+            "n_fundos": info.get("n_fundos"),
+            "macro": SEGMENTOS_CONFIG.get(seg, {}).get("macro"),
+            "normalizado": SEGMENTOS_CONFIG.get(seg, {}).get("normalizado", False),
+        }
+    return {
+        "status":          "ok",
+        "versao_modelo":   META.get("versao") if META else None,
+        "n_fundos_total":  META.get("n_fundos_total") if META else None,
+        "r2_medio":        META.get("r2_medio_com_pandemia") if META else None,
+        "segmentos":       resumo,
+        "melhor_modelo":   "por segmento",
+        "n_fundos":        META.get("n_fundos_total") if META else None,
+    }
+
+
+@app.get("/fundos", tags=["Dados"], response_model=list[InfoFundo])
+def listar_fundos(segmento: Optional[str] = None):
+    """Lista fundos disponíveis. Filtrar por segmento opcional."""
+    if FUNDOS_DF is None:
+        return []
+    df = FUNDOS_DF.copy()
+    if segmento and "Segmento" in df.columns:
+        df = df[df["Segmento"] == segmento]
+    resultado = []
+    for _, row in df.iterrows():
+        resultado.append(InfoFundo(
+            sigla         = str(row.get("Sigla", "")),
+            dy_recente    = _safe_float(row.get("Dividendos_Yield")),
+            dy_lag1       = _safe_float(row.get("DY_lag1")),
+            dy_lag2       = _safe_float(row.get("DY_lag2")),
+            dy_lag3       = _safe_float(row.get("DY_lag3")),
+            pvp           = _safe_float(row.get("PVP_lag1")),
+            selic         = _safe_float(row.get("SELIC")),
+            segmento      = _safe_str(row.get("Segmento")),
+            tipo_do_fundo = _safe_str(row.get("Tipo_do_Fundo")),
+        ))
+    return resultado
+
+
+@app.get("/segmentos", tags=["Dados"])
+def listar_segmentos():
+    """Lista segmentos disponíveis, excluídos e suas configurações."""
+    mps = META.get("modelos_por_segmento", {}) if META else {}
+    disponiveis = []
+    for seg, cfg in SEGMENTOS_CONFIG.items():
+        info = mps.get(seg, {})
+        melhor = info.get("melhor", "")
+        met    = info.get("metricas", {}).get(melhor, {})
+        disponiveis.append({
+            "segmento":    seg,
+            "macro":       cfg["macro"],
+            "normalizado": cfg["normalizado"],
+            "n_fundos":    info.get("n_fundos"),
+            "r2":          met.get("r2"),
+            "mape":        met.get("mape"),
+        })
+    return {
+        "disponiveis": disponiveis,
+        "excluidos":   [{"segmento": s, "motivo": m} for s, m in SEGMENTOS_EXCLUIDOS.items()],
+    }
+
+
+@app.post("/predict", tags=["Previsão"], response_model=SaidaPredicao)
+def prever(entrada: EntradaPredicao):
+    """
+    Previsão de DY para o próximo mês.
+    Seleciona automaticamente o modelo correto para o segmento informado.
+    Para Shoppings aplica normalização z-score automaticamente.
+    """
+    seg = entrada.segmento
+
+    # Verifica se segmento está disponível
+    if seg in SEGMENTOS_EXCLUIDOS:
+        raise HTTPException(400, detail=(
+            f"Segmento '{seg}' excluido do modelo: {SEGMENTOS_EXCLUIDOS[seg]}"
+        ))
+
+    if seg not in MODELOS_SEG and FALLBACK is None:
+        raise HTTPException(503, detail="Nenhum modelo disponível.")
+
+    # Seleciona modelo
+    pipe = MODELOS_SEG.get(seg, FALLBACK)
+    cfg  = SEGMENTOS_CONFIG.get(seg, {"macro": "SELIC", "normalizado": False})
+
+    # Sufixo sem pandemia
+    if entrada.excluir_pandemia:
+        slug     = seg.lower().replace(" ","_").replace("/","_").replace(".","")
+        pkl_sp   = MODEL_DIR / f"modelo_{slug}_sem_pandemia.pkl"
+        if pkl_sp.exists():
+            pipe = joblib.load(pkl_sp)
+
+    # Normaliza DY para Shoppings
+    dy1, dy2, dy3 = entrada.dy_lag1, entrada.dy_lag2, entrada.dy_lag3
+    normalizado = cfg["normalizado"]
+    if normalizado:
+        dy1 = _normalizar_dy(dy1, entrada.sigla)
+        dy2 = _normalizar_dy(dy2, entrada.sigla)
+        dy3 = _normalizar_dy(dy3, entrada.sigla)
+
+    # SELIC atual
+    selic = _get_selic_atual()
+
+    # Monta features
+    num_cols, cat_cols = _get_num_cat_cols(seg)
+
+    row: dict = {
+        "DY_lag1": dy1,
+        "DY_lag2": dy2,
+        "DY_lag3": dy3,
+    }
+
+    if "PVP_lag1" in num_cols:
+        row["PVP_lag1"] = entrada.pvp if entrada.pvp is not None else np.nan
+
+    if "SELIC" in num_cols:
+        row["SELIC"] = selic
+
+    if "CDI" in num_cols:
+        row["CDI"] = selic  # CDI ~ SELIC para previsao futura
+
+    if "Tipo_do_Fundo" in cat_cols:
+        row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or "Tijolo"
+
+    X = pd.DataFrame([row])[num_cols + cat_cols]
+
+    try:
+        dy_pred = float(pipe.predict(X)[0])
+    except Exception as e:
+        raise HTTPException(500, detail=f"Erro na predicao: {str(e)}")
+
+    # Desnormaliza para Shoppings
+    if normalizado:
+        dy_pred = _desnormalizar_dy(dy_pred, entrada.sigla)
+
+    # Metricas do segmento
+    info   = _get_meta_segmento(seg)
+    melhor = info.get("melhor", "")
+    met    = info.get("metricas", {}).get(melhor, {})
+
+    data_ref = entrada.data_referencia or datetime.now().strftime("%Y-%m-01")
+
+    return SaidaPredicao(
+        sigla           = entrada.sigla.upper(),
+        segmento        = seg,
+        dy_previsto     = round(dy_pred, 6),
+        dy_previsto_pct = round(dy_pred * 100, 4),
+        dy_previsto_aa  = round(dy_pred * 12 * 100, 2),
+        modelo_usado    = melhor or "Random Forest",
+        macro_usado     = cfg["macro"],
+        normalizado     = normalizado,
+        data_referencia = data_ref,
+        r2              = met.get("r2"),
+        mape            = met.get("mape"),
+        cv_r2           = met.get("cv_r2"),
+    )
+
+
+@app.post("/predict/comparar", tags=["Previsão"])
+def comparar_pandemia(entrada: EntradaPredicao):
+    """
+    Compara previsao com pandemia vs sem pandemia para o segmento informado.
+    Util para visualizacao no TCC.
+    """
+    seg = entrada.segmento
+    if seg in SEGMENTOS_EXCLUIDOS:
+        raise HTTPException(400, detail=f"Segmento '{seg}' excluido: {SEGMENTOS_EXCLUIDOS[seg]}")
+
+    cfg          = SEGMENTOS_CONFIG.get(seg, {"macro": "SELIC", "normalizado": False})
+    normalizado  = cfg["normalizado"]
+    selic        = _get_selic_atual()
+    num_cols, cat_cols = _get_num_cat_cols(seg)
+    resultados   = []
+
+    for com_pandemia in [True, False]:
+        # Seleciona pipe
+        slug = seg.lower().replace(" ","_").replace("/","_").replace(".","")
+        if com_pandemia:
+            pkl = MODEL_DIR / f"modelo_{slug}.pkl"
+        else:
+            pkl = MODEL_DIR / f"modelo_{slug}_sem_pandemia.pkl"
+
+        if not pkl.exists():
+            continue
+
+        pipe = joblib.load(pkl)
+
+        dy1 = _normalizar_dy(entrada.dy_lag1, entrada.sigla) if normalizado else entrada.dy_lag1
+        dy2 = _normalizar_dy(entrada.dy_lag2, entrada.sigla) if normalizado else entrada.dy_lag2
+        dy3 = _normalizar_dy(entrada.dy_lag3, entrada.sigla) if normalizado else entrada.dy_lag3
+
+        row = {"DY_lag1": dy1, "DY_lag2": dy2, "DY_lag3": dy3}
+        if "PVP_lag1" in num_cols:
+            row["PVP_lag1"] = entrada.pvp if entrada.pvp is not None else np.nan
+        if "SELIC" in num_cols:
+            row["SELIC"] = selic
+        if "CDI" in num_cols:
+            row["CDI"] = selic
+        if "Tipo_do_Fundo" in cat_cols:
+            row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or "Tijolo"
+
+        X = pd.DataFrame([row])[num_cols + cat_cols]
+
+        try:
+            dy_pred = float(pipe.predict(X)[0])
+            if normalizado:
+                dy_pred = _desnormalizar_dy(dy_pred, entrada.sigla)
+
+            # Metricas
+            info   = _get_meta_segmento(seg)
+            if not com_pandemia:
+                info = info.get("sem_pandemia", info)
+            melhor = info.get("melhor", "")
+            met    = info.get("metricas", {}).get(melhor, {})
+
+            resultados.append({
+                "versao":        "com_pandemia" if com_pandemia else "sem_pandemia",
+                "dy_previsto":   round(dy_pred, 6),
+                "dy_pct_am":     round(dy_pred * 100, 4),
+                "dy_pct_aa":     round(dy_pred * 12 * 100, 2),
+                "modelo":        melhor,
+                "r2":            met.get("r2"),
+                "mape":          met.get("mape"),
+                "cv_r2":         met.get("cv_r2"),
+            })
+        except Exception as e:
+            resultados.append({"versao": "com_pandemia" if com_pandemia else "sem_pandemia", "erro": str(e)})
+
+    return {
+        "sigla":    entrada.sigla.upper(),
+        "segmento": seg,
+        "macro":    cfg["macro"],
+        "comparacao_pandemia": resultados,
+    }
+
+
+@app.get("/fii/{sigla}", tags=["brapi.dev"])
+async def get_fii_brapi(sigla: str):
+    """Dados atuais do FII via brapi.dev. Token protegido no servidor."""
+    if not BRAPI_TOKEN:
+        raise HTTPException(503, detail="BRAPI_TOKEN nao configurado")
+    url = f"{BRAPI_BASE}/v2/fii/indicators?symbols={sigla.upper()}"
+    async with httpx.AsyncClient(timeout=15, headers={"Authorization": f"Bearer {BRAPI_TOKEN}"}) as client:
+        try:
+            r = await client.get(url)
+            if r.status_code != 200:
+                raise HTTPException(r.status_code, detail=f"brapi.dev: {r.status_code}")
+            fiis = r.json().get("fiis", [])
+            if not fiis:
+                raise HTTPException(404, detail=f"{sigla.upper()} nao encontrado")
+            f = fiis[0]
+            return {
+                "sigla":           sigla.upper(),
+                "nome":            f.get("name", ""),
+                "segmento":        f.get("segmentoAtuacao", ""),
+                "tipo":            f.get("segmentType", ""),
+                "dy_12m":          f.get("dividendYield12m"),
+                "dy_1m":           f.get("dividendYield1m"),
+                "pvp":             f.get("priceToNav"),
+                "preco":           f.get("price"),
+                "patrimonio":      f.get("equity"),
+                "total_cotistas":  f.get("totalInvestors"),
+                "fonte":           "brapi.dev Pro",
+            }
+        except httpx.TimeoutException:
+            raise HTTPException(504, detail="Timeout na brapi.dev")
 
 
 if __name__ == "__main__":
