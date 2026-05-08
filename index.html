@@ -192,7 +192,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
             <option value="Lajes Corporativas">Lajes Corporativas</option>
           </select>
         </div>
-        <div class="field"><label>Sigla</label><select id="sigla"></select></div>
+        <div class="field"><label>Sigla</label><select id="sigla" onchange="onSiglaChange()"></select></div>
       </div>
       <div class="grid2">
         <div class="field"><label>Tipo do fundo</label>
@@ -216,11 +216,10 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
       </div>
       <input type="hidden" id="dataRef" value="2025-01">
       <div class="divider"></div>
-      <div class="section-label">Indicadores atuais</div>
-      <div class="grid3">
-        <div class="field"><label>DY atual (% a.m.)</label><input type="number" id="dy" value="0.82" min="0" max="5" step="0.01"></div>
-        <div class="field"><label>P/VP</label><input type="number" id="pvp" value="0.91" min="0.1" max="3" step="0.01"></div>
-        
+      <div class="section-label">Indicadores do fundo <span style="font-size:10px;font-weight:400;color:var(--text3)">— preenchidos automaticamente pelo modelo</span></div>
+      <div class="grid2">
+        <div class="field"><label>DY mais recente (% a.m.)</label><input type="number" id="dy" value="0.82" min="0" max="5" step="0.001" readonly style="background:var(--bg2);color:var(--text3);cursor:default"></div>
+        <div class="field"><label>P/VP</label><input type="number" id="pvp" value="0.91" min="0.1" max="3" step="0.01" readonly style="background:var(--bg2);color:var(--text3);cursor:default"></div>
       </div>
       <button class="btn" id="btnPredict" onclick="predictSingle()">
         <span id="btnText">Gerar previsão</span>
@@ -512,7 +511,17 @@ async function initApi(){
     if(r.ok){
       const h=await r.json(); apiMeta=h;
       document.getElementById('apiDot').classList.add('online');
-      document.getElementById('apiStatus').textContent=`API online · ${h.n_fundos||107} fundos · Modelo: Random Forest + XGBoost`;
+      document.getElementById('apiStatus').textContent=`API online · ${h.n_fundos||62} fundos · Modelo: Random Forest + XGBoost`;
+      // Carrega dados recentes de todos os fundos para preencher DY e PVP automaticamente
+      try{
+        const rf=await fetch(API+'/fundos',{signal:AbortSignal.timeout(10000)});
+        if(rf.ok){
+          const lista=await rf.json();
+          lista.forEach(f=>{ apiFundos[f.sigla]=f; });
+          // Preenche os campos com o fundo inicial
+          preencherDadosFundo(document.getElementById('sigla').value);
+        }
+      }catch{}
     } else throw new Error();
   }catch{
     document.getElementById('apiDot').classList.add('offline');
@@ -521,12 +530,33 @@ async function initApi(){
 }
 initApi();
 
+function preencherDadosFundo(sigla){
+  const f = apiFundos[sigla];
+  if(!f) return;
+  // DY recente — usa dy_recente ou dy_lag1
+  const dy = f.dy_recente || f.dy_lag1;
+  if(dy && !isNaN(dy)){
+    document.getElementById('dy').value = (dy*100).toFixed(3);
+  }
+  // P/VP
+  if(f.pvp && !isNaN(f.pvp)){
+    document.getElementById('pvp').value = parseFloat(f.pvp).toFixed(2);
+  }
+}
+
 function onSegChange(){
   const seg=document.getElementById('segmento').value;
   const el=document.getElementById('sigla'); el.innerHTML='';
   (SEG_FIIS[seg]||[]).forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;el.appendChild(o);});
   document.getElementById('tipo').value=SEG_TIPO[seg]||'Fundo de Tijolo';
+  // Preenche dados do primeiro fundo do segmento
+  preencherDadosFundo(el.value);
 }
+
+function onSiglaChange(){
+  preencherDadosFundo(document.getElementById('sigla').value);
+}
+
 onSegChange();
 
 function buildSeries(base,n){
