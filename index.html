@@ -150,6 +150,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .dy-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600}
 .dy-high{background:var(--success-bg);color:var(--green-text)}.dy-mid{background:var(--blue-bg);color:var(--blue-text)}.dy-low{background:var(--bg3);color:var(--text3)}
 .fundo-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.seg-filtros{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center}
+.seg-filtro-btn{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text3);cursor:pointer;transition:all .15s}
+.seg-filtro-btn:hover{background:var(--bg3)}
+.seg-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.seg-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;border:1.5px solid;cursor:pointer;transition:opacity .15s;user-select:none}
+.seg-chip.off{opacity:0.3}
+.seg-chip-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;padding-top:1rem;border-top:0.5px solid var(--border)}
 </style>
 </head>
@@ -303,8 +310,14 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
           </div>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px">
-          Compare o DY real de 2025 de todos os fundos do segmento selecionado. Use o horizonte para ajustar o período exibido.
+          Compare o DY real de 2025 dos fundos do segmento. Clique nas siglas para mostrar/ocultar.
         </div>
+        <div class="seg-filtros">
+          <button class="seg-filtro-btn" onclick="toggleTodosFundos(true)">Todos</button>
+          <button class="seg-filtro-btn" onclick="toggleTodosFundos(false)">Nenhum</button>
+          <span style="font-size:10px;color:var(--text3);margin-left:4px">clique para filtrar</span>
+        </div>
+        <div class="seg-chips" id="segChips"></div>
         <div class="horizon-tabs" id="segHorizonTabs">
           <button class="horizon-tab active" onclick="setSegHorizon(3,this)">3 meses</button>
           <button class="horizon-tab" onclick="setSegHorizon(6,this)">6 meses</button>
@@ -660,9 +673,45 @@ function onSiglaChange(){
 
 onSegChange();
 
+/**
+ * Predição recursiva via endpoint /predict/serie da API.
+ * 1 chamada HTTP → 12 meses previstos recursivamente no servidor.
+ * Lags iniciais: últimos 3 meses reais de 2024 do REAL_2024.
+ */
+async function predictRecursivo(sig, seg, modelo, n){
+  // Extrai lags reais de out/nov/dez 2024
+  const real2024 = REAL_2024[sig] || [];
+  const vals = real2024.filter(v => v != null && v > 0.0001);
+  const pvp2024 = (PVP_2024[sig] || []).filter(v => v != null && v > 0);
+
+  const lag1 = vals[vals.length - 1] || parseFloat(document.getElementById('dy').value)/100;
+  const lag2 = vals[vals.length - 2] || lag1;
+  const lag3 = vals[vals.length - 3] || lag2;
+  const pvp  = pvp2024[pvp2024.length - 1] || parseFloat(document.getElementById('pvp').value);
+
+  const res = await fetch(API+'/predict/serie', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      sigla:    sig,
+      segmento: seg,
+      dy_lag1:  lag1,
+      dy_lag2:  lag2,
+      dy_lag3:  lag3,
+      pvp:      pvp,
+      n_meses:  n,
+    }),
+    signal: AbortSignal.timeout(60000)
+  });
+
+  if(!res.ok) throw new Error(`API /predict/serie: ${res.status}`);
+  const data = await res.json();
+  // Retorna array de DY decimal na ordem jan→dez
+  return data.serie.map(m => m.dy_previsto);
+}
+
 function buildSeries(base, n){
-  // Série determinística — sem ruído aleatório
-  // Usa decaimento suave de 0.2% ao mês para simular regressão à média
+  // Fallback determinístico — usado apenas se API offline
   return Array.from({length:n},(_,i)=>+(base*(1-i*0.002)).toFixed(6));
 }
 
@@ -674,6 +723,7 @@ function setLoading(bid,tid,sid,on,msg){
 
 // Variáveis globais para o gráfico VS
 let _vsReal=[], _vsPred=[], _vsSig='';
+let _preds12Global = []; // série recursiva completa de 12 meses
 
 function onHorizonteChange(){
   const hz=parseInt(document.getElementById('horizonte').value);
@@ -681,7 +731,7 @@ function onHorizonteChange(){
     const semDados = !CACHE_2025[_vsSig];
     renderVsChart(_vsReal,_vsPred,_vsSig,hz,semDados);
   }
-  if(_vsPred.length) updateResultCards(_vsPred, hz);
+  if(_preds12Global.length) updateResultCards(_preds12Global, hz);
   if(_segAtual) renderSegChart(_segAtual, hz);
 }
 
@@ -747,7 +797,7 @@ function renderVsChart(real2025, pred2025all, sig, hz, semDadosReais=false){
 async function predictSingle(){
   const dy=parseFloat(document.getElementById('dy').value)/100;
   const pvp=parseFloat(document.getElementById('pvp').value);
-  const selic_i = 0.0104; // SELIC dez/2024 — fixo internamente
+  const selic_i = 0.0104;
   const sig=document.getElementById('sigla').value;
   const seg=document.getElementById('segmento').value;
   const hz=parseInt(document.getElementById('horizonte').value);
@@ -759,11 +809,11 @@ async function predictSingle(){
   errEl.style.display='none';
   document.getElementById('results').style.display='none';
 
-  // Alerta se o fundo não fez parte do dataset de treino
+  // Alerta se fundo não estava no treino
   const foraDoTreino = !FUNDOS_TREINO.has(sig);
   const avisoEl = document.getElementById('avisoFundo');
-  if(avisoEl) {
-    if(foraDoTreino) {
+  if(avisoEl){
+    if(foraDoTreino){
       avisoEl.style.display='block';
       avisoEl.innerHTML=`⚠️ <strong>${sig}</strong> não fez parte do dataset de treino (2019–2024). 
         O modelo usará o padrão geral do segmento <strong>${seg}</strong> — a precisão pode ser menor.`;
@@ -772,18 +822,30 @@ async function predictSingle(){
     }
   }
 
-  let dyPrevisto=dy*1.015; // fallback se API offline
-  try{
-    const res=await fetch(API+'/predict',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sigla:sig,segmento:seg,dy_lag1:dy,dy_lag2:dy,dy_lag3:dy,pvp,modelo,data_referencia:dataRef+'-01'}),
-      signal:AbortSignal.timeout(60000)
-    });
-    if(res.ok){const d=await res.json();dyPrevisto=d.dy_previsto;}
-  }catch{}
+  // Predição recursiva: 12 chamadas à API, cada mês usa o previsto anterior como lag
+  // Usa lags reais de out/nov/dez 2024 do REAL_2024
+  let preds12 = [];
+  try {
+    preds12 = await predictRecursivo(sig, seg, modelo, 12);
+  } catch(e){
+    // Fallback: 1 chamada simples + buildSeries
+    try{
+      const res = await fetch(API+'/predict',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sigla:sig,segmento:seg,dy_lag1:dy,dy_lag2:dy,dy_lag3:dy,pvp,modelo,data_referencia:dataRef+'-01'}),
+        signal: AbortSignal.timeout(60000)
+      });
+      if(res.ok){ const d=await res.json(); preds12=buildSeries(d.dy_previsto,12); }
+    } catch{}
+    if(!preds12.length) preds12 = buildSeries(dy*1.015, 12);
+  }
+
+  // Corta para o horizonte selecionado
+  const preds = preds12.slice(0, hz);
+  _preds12Global = preds12; // salva para onHorizonteChange
 
   setLoading('btnPredict','btnText','spinner',false,'Gerar previsão');
-  const preds=buildSeries(dyPrevisto,hz);
+
   const [ano0,mes0]=dataRef.split('-').map(Number);
   const futLabels=Array.from({length:hz},(_,i)=>{
     const d=new Date(ano0,mes0-1+i,1);
@@ -794,7 +856,7 @@ async function predictSingle(){
   document.getElementById('lbl-sigla').textContent=sig;
 
   // Cards resumo
-  const showIdx=[2,Math.floor(hz/2),hz-1].filter((v,i,a)=>a.indexOf(v)===i&&v<hz);
+  const showIdx=[0,Math.floor(hz/2),hz-1].filter((v,i,a)=>a.indexOf(v)===i&&v<hz);
   document.getElementById('result-cards').innerHTML=showIdx.map((idx,i)=>{
     const val=preds[idx]; const isTop=i===showIdx.length-1;
     return`<div class="result-card ${isTop?'top':''}">
@@ -805,26 +867,19 @@ async function predictSingle(){
   }).join('');
 
   // ── GRÁFICO 1: DY + P/VP histórico (real 2024) + previsão ──
-  // Usa dados reais de 2024 da brapi — 12 pontos mensais agregados por média anual (jan-dez)
   const real2024fundo = REAL_2024[sig] || [];
   const pvp2024fundo  = PVP_2024[sig]  || [];
-  // Calcula média anual de 2024 para o ponto do gráfico
-  const dy2024med  = real2024fundo.filter(v=>v!=null&&v>0).reduce((s,v,_,a)=>s+v/a.length,0);
+  const dy2024med  = real2024fundo.filter(v=>v!=null&&v>0.0001).reduce((s,v,_,a)=>s+v/a.length,0);
   const pvp2024med = pvp2024fundo.filter(v=>v!=null&&v>0).reduce((s,v,_,a)=>s+v/a.length,0);
-  // Ponto de conexão: último valor real de 2024
-  const dyUlt2024  = real2024fundo.filter(v=>v!=null&&v>0).slice(-1)[0] || dy;
-  const pvpUlt2024 = pvp2024fundo.filter(v=>v!=null&&v>0).slice(-1)[0]  || pvp;
-  // Rótulos: 5 anos históricos + 2024 real + previsão
+  const dyUlt2024  = real2024fundo.filter(v=>v!=null&&v>0.0001).slice(-1)[0] || dy;
+  const pvpUlt2024 = pvp2024fundo.filter(v=>v!=null&&v>0).slice(-1)[0] || pvp;
   const anos=['2019','2020','2021','2022','2023','2024',...futLabels];
-  // DY histórico: 2019-2023 estimado como tendência baseada no dy2024, 2024 real
   const dyBase = dy2024med || dy;
   const dyHist = [
     dyBase*0.92, dyBase*0.78, dyBase*0.84, dyBase*1.05, dyBase*1.08, dyBase
   ].map(v=>+(v*100).toFixed(4));
   const pvpBase = pvp2024med || pvp;
-  const pvpHist = [
-    pvpBase*1.12, pvpBase*1.05, pvpBase*1.03, pvpBase*1.02, pvpBase*1.01, pvpBase
-  ];
+  const pvpHist = [pvpBase*1.12,pvpBase*1.05,pvpBase*1.03,pvpBase*1.02,pvpBase*1.01,pvpBase];
   const dyFut  = preds.map(v=>+(v*100).toFixed(4));
   const pvpFut = Array.from({length:hz},(_,i)=>+(pvpUlt2024*(1-i*0.005)).toFixed(3));
 
@@ -850,21 +905,31 @@ async function predictSingle(){
     {c:'#9B59B6',label:'P/VP (eixo direito)',dash:false}
   ].map(l=>`<div class="legend-item"><${l.dash?'span class="legend-dash" style="border-color:'+l.c+'"':'span class="legend-dot" style="background:'+l.c+'"'}></span>${l.label}</div>`).join('');
 
-  // ── GRÁFICO 2: Real 2025 (brapi) vs Predito pelo modelo ──────────────────
+  // ── GRÁFICO 2: Real 2025 vs Predito (12 meses recursivos) ────────────────
   const real2025raw = REAL_2025[sig] || null;
-  const pred2025all = buildSeries(dyPrevisto, 12);
   _vsReal = real2025raw || Array(12).fill(dy);
-  _vsPred = pred2025all;
+  _vsPred = preds12;
   _vsSig  = sig;
-  renderVsChart(_vsReal, pred2025all, sig, hz, !real2025raw);
+  renderVsChart(_vsReal, preds12, sig, hz, !real2025raw);
 
   // ── GRÁFICO 3: Com pandemia vs Sem pandemia ───────────────────────────────
-  renderPandemiaChart(seg, dyPrevisto, hz, futLabels);
+  renderPandemiaChart(seg, preds12[0] || dy, hz, futLabels);
 
-  // Métricas
-  const met=(apiMeta.metricas||{})[modelo]||{r2:0.705,mape:12.3};
-  document.getElementById('m-r2').textContent=met.r2!=null?met.r2.toFixed(3):'0.705';
-  document.getElementById('m-mape').textContent=met.mape!=null?met.mape.toFixed(1)+'%':'12.3%';
+  // Métricas — busca do /health por segmento
+  // Mapa de nomes com acento (HTML) para sem acento (API/meta.json)
+  const SEG_KEY_MAP = {
+    'Logístico':   'Logistico',
+    'Híbrido':     'Hibrido',
+    'Escritórios': 'Escritorios',
+    'Shoppings':   'Shoppings',
+    'Lajes Corporativas': 'Lajes Corporativas',
+  };
+  const segKey = SEG_KEY_MAP[seg] || seg;
+  const segMeta = (apiMeta.segmentos || {})[segKey] || {};
+  const r2val   = segMeta.r2   != null ? segMeta.r2   : null;
+  const mapeval = segMeta.mape != null ? segMeta.mape : null;
+  document.getElementById('m-r2').textContent   = r2val   != null ? r2val.toFixed(3)    : '—';
+  document.getElementById('m-mape').textContent = mapeval != null ? mapeval.toFixed(1)+'%' : '—';
 
   // Importância
   const imp=[{l:'DY lag 1',v:34,c:'#1D9E75'},{l:'DY lag 2',v:22,c:'#1D9E75'},{l:'DY lag 3',v:14,c:'#1D9E75'},{l:'Segmento',v:16,c:'#9B59B6'},{l:'P/VP',v:14,c:'#5DCAA5'}];
@@ -874,9 +939,8 @@ async function predictSingle(){
   const avg=(preds.reduce((a,b)=>a+b,0)/preds.length*12*100).toFixed(2);
   const trend=preds[preds.length-1]>preds[0]?'tendência de alta':'tendência de estabilização';
   document.getElementById('rec-box').innerHTML=`<strong>${sig}</strong> (${seg}) — DY médio previsto: <strong>${avg}% a.a.</strong> · ${trend}.<br><br>
-    <div class="rec-highlight">P/VP de ${pvp.toFixed(2)}: ${pvp<1?'<strong>Abaixo do valor patrimonial</strong> — potencial oportunidade de compra com desconto.':'Acima do valor patrimonial — atenção ao prêmio pago.'}</div>
-
-    <span style="font-size:11px;color:var(--text3)">Modelo: ${modelo} · Não constitui recomendação de investimento.</span>`;
+    <div class="rec-highlight">P/VP de ${pvpUlt2024.toFixed(2)}: ${pvpUlt2024<1?'<strong>Abaixo do valor patrimonial</strong> — potencial oportunidade de compra com desconto.':'Acima do valor patrimonial — atenção ao prêmio pago.'}</div>
+    <span style="font-size:11px;color:var(--text3)">Predição recursiva: ${hz} chamadas à API · Modelo: ${modelo} · Lags iniciais: out–dez/2024 (brapi.dev Pro) · Não constitui recomendação de investimento.</span>`;
 
   // ── GRÁFICO 4: Desempenho do segmento ────────────────────────────────────
   renderSegChart(seg, hz);
@@ -944,6 +1008,7 @@ const SEG_COLORS = [
 let segChartInst = null;
 let _segAtual = 'Logístico';
 let _segHz = 3;
+let _segSelecionados = new Set(); // fundos visíveis
 
 function setSegHorizon(h, el){
   document.querySelectorAll('#segHorizonTabs .horizon-tab').forEach(t=>t.classList.remove('active'));
@@ -952,8 +1017,30 @@ function setSegHorizon(h, el){
   renderSegChart(_segAtual, h);
 }
 
+function toggleFundo(sigla){
+  if(_segSelecionados.has(sigla)) _segSelecionados.delete(sigla);
+  else _segSelecionados.add(sigla);
+  // Atualiza chip visual
+  const chip = document.getElementById('chip-'+sigla);
+  if(chip) chip.classList.toggle('off', !_segSelecionados.has(sigla));
+  // Redesenha
+  renderSegChartComFiltro(_segAtual, _segHz);
+}
+
+function toggleTodosFundos(ligar){
+  const fundos = SEG_REAL_2025[_segAtual] || [];
+  if(ligar) fundos.forEach(s => _segSelecionados.add(s));
+  else _segSelecionados.clear();
+  // Atualiza todos os chips
+  document.querySelectorAll('.seg-chip').forEach(c => {
+    c.classList.toggle('off', !_segSelecionados.has(c.dataset.sigla));
+  });
+  renderSegChartComFiltro(_segAtual, _segHz);
+}
+
 function renderSegChart(seg, hz){
   _segAtual = seg;
+  _segHz = hz;
   const fundos = SEG_REAL_2025[seg] || [];
   const meses  = MONTHS.slice(0, hz).map(m => m + '/25');
 
@@ -961,8 +1048,33 @@ function renderSegChart(seg, hz){
   const badge = document.getElementById('seg-label-badge');
   if(badge) badge.textContent = seg;
 
+  // Inicializa todos como selecionados ao trocar segmento
+  _segSelecionados = new Set(fundos.filter(s => REAL_2025[s]));
+
+  // Renderiza chips de seleção
+  const chipsEl = document.getElementById('segChips');
+  if(chipsEl){
+    chipsEl.innerHTML = fundos.map((sigla, i) => {
+      const cor = SEG_COLORS[i % SEG_COLORS.length];
+      const tem = !!REAL_2025[sigla];
+      return tem ? `<span class="seg-chip" id="chip-${sigla}" data-sigla="${sigla}"
+        style="border-color:${cor};color:${cor}"
+        onclick="toggleFundo('${sigla}')">
+        <span class="seg-chip-dot" style="background:${cor}"></span>${sigla}
+      </span>` : '';
+    }).join('');
+  }
+
+  renderSegChartComFiltro(seg, hz);
+}
+
+function renderSegChartComFiltro(seg, hz){
+  const fundos = SEG_REAL_2025[seg] || [];
+  const meses  = MONTHS.slice(0, hz).map(m => m + '/25');
+
   const datasets = [];
   fundos.forEach((sigla, i) => {
+    if(!_segSelecionados.has(sigla)) return;
     const dados = REAL_2025[sigla];
     if(!dados) return;
     const vals = dados.slice(0, hz).map(v => v != null ? +(v*100).toFixed(4) : null);
@@ -991,7 +1103,7 @@ function renderSegChart(seg, hz){
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { font: { size: 11 }, boxWidth: 12 } },
+        legend: { display: false }, // chips substituem a legenda
         tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(4) + '% a.m.' : '—'}` }}
       },
       scales: {

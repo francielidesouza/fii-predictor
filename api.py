@@ -475,6 +475,125 @@ def comparar_pandemia(entrada: EntradaPredicao):
     }
 
 
+class EntradaSerie(BaseModel):
+    sigla:          str            = Field(...,  example="HGLG11")
+    segmento:       str            = Field(...,  example="Logistico")
+    dy_lag1:        float          = Field(...,  example=0.00704,  description="DY dez/2024")
+    dy_lag2:        float          = Field(...,  example=0.007013, description="DY nov/2024")
+    dy_lag3:        float          = Field(...,  example=0.006989, description="DY out/2024")
+    pvp:            Optional[float]= Field(None, example=0.8054)
+    tipo_do_fundo:  Optional[str]  = Field(None, example="Tijolo")
+    n_meses:        int            = Field(12,   ge=1, le=12, description="Quantos meses prever")
+    excluir_pandemia: bool         = Field(False)
+
+
+class SaidaSerie(BaseModel):
+    sigla:      str
+    segmento:   str
+    n_meses:    int
+    serie:      list  # lista de dicts com mes, dy_previsto, dy_previsto_pct
+    r2:         Optional[float] = None
+    mape:       Optional[float] = None
+
+
+@app.post("/predict/serie", tags=["Previsão"], response_model=SaidaSerie)
+def prever_serie(entrada: EntradaSerie):
+    """
+    Predicao recursiva de N meses (padrao 12).
+    Cada mes usa o DY previsto do mes anterior como lag — sem chamadas multiplas do frontend.
+    Lags iniciais devem ser os 3 ultimos meses reais conhecidos (ex: out/nov/dez 2024).
+    """
+    seg = entrada.segmento
+    if seg in SEGMENTOS_EXCLUIDOS:
+        raise HTTPException(400, detail=f"Segmento '{seg}' excluido: {SEGMENTOS_EXCLUIDOS[seg]}")
+
+    cfg         = SEGMENTOS_CONFIG.get(seg, {"macro": "SELIC", "normalizado": False})
+    normalizado = cfg["normalizado"]
+    selic       = _get_selic_atual()
+    num_cols, cat_cols = _get_num_cat_cols(seg)
+
+    # Seleciona pipe
+    if entrada.excluir_pandemia:
+        slug = seg.lower().replace(" ","_").replace("/","_").replace(".","")
+        pkl  = MODEL_DIR / f"modelo_{slug}_sem_pandemia.pkl"
+        pipe = joblib.load(pkl) if pkl.exists() else MODELOS_SEG.get(seg, FALLBACK)
+    else:
+        pipe = MODELOS_SEG.get(seg, FALLBACK)
+
+    if pipe is None:
+        raise HTTPException(503, detail="Modelo nao disponivel.")
+
+    info   = _get_meta_segmento(seg)
+    melhor = info.get("melhor", "")
+    met    = info.get("metricas", {}).get(melhor, {})
+
+    # Lags iniciais — os 3 ultimos meses reais conhecidos
+    lag1 = entrada.dy_lag1
+    lag2 = entrada.dy_lag2
+    lag3 = entrada.dy_lag3
+    pvp  = entrada.pvp
+
+    serie = []
+    # Data inicial: jan/2025
+    from datetime import date
+    ano, mes = 2025, 1
+
+    for i in range(entrada.n_meses):
+        # Normaliza para Shoppings
+        l1 = _normalizar_dy(lag1, entrada.sigla) if normalizado else lag1
+        l2 = _normalizar_dy(lag2, entrada.sigla) if normalizado else lag2
+        l3 = _normalizar_dy(lag3, entrada.sigla) if normalizado else lag3
+
+        row: dict = {"DY_lag1": l1, "DY_lag2": l2, "DY_lag3": l3}
+        if "PVP_lag1" in num_cols:
+            row["PVP_lag1"] = pvp if pvp is not None else np.nan
+        if "SELIC" in num_cols:
+            row["SELIC"] = selic
+        if "CDI" in num_cols:
+            row["CDI"] = selic
+        if "Tipo_do_Fundo" in cat_cols:
+            row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or "Tijolo"
+
+        X = pd.DataFrame([row])[num_cols + cat_cols]
+
+        try:
+            dy_pred = float(pipe.predict(X)[0])
+        except Exception:
+            dy_pred = lag1  # fallback: repete último conhecido
+
+        # Desnormaliza para Shoppings
+        if normalizado:
+            dy_pred = _desnormalizar_dy(dy_pred, entrada.sigla)
+
+        mes_str = f"{ano}-{str(mes).zfill(2)}"
+        serie.append({
+            "mes":            mes_str,
+            "dy_previsto":    round(dy_pred, 6),
+            "dy_previsto_pct": round(dy_pred * 100, 4),
+            "dy_previsto_aa":  round(dy_pred * 12 * 100, 2),
+        })
+
+        # Retroalimenta: previsto vira lag do proximo mes
+        lag3 = lag2
+        lag2 = lag1
+        lag1 = dy_pred
+
+        # Avanca mes
+        mes += 1
+        if mes > 12:
+            mes = 1
+            ano += 1
+
+    return SaidaSerie(
+        sigla    = entrada.sigla.upper(),
+        segmento = seg,
+        n_meses  = entrada.n_meses,
+        serie    = serie,
+        r2       = met.get("r2"),
+        mape     = met.get("mape"),
+    )
+
+
 @app.get("/fii/{sigla}", tags=["brapi.dev"])
 async def get_fii_brapi(sigla: str):
     """Dados atuais do FII via brapi.dev. Token protegido no servidor."""
