@@ -176,7 +176,6 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
 
   <div class="tabs">
     <button class="tab active"  onclick="switchTab('manual')">Fundo individual</button>
-        <button class="tab"         onclick="switchTab('portfolio')">Meu portfólio</button>
   </div>
 
   <!-- ── ABA 1: Fundo Individual ─────────────────────────────────────────── -->
@@ -294,6 +293,26 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
       <div class="card">
         <div class="section-label">Recomendação</div>
         <div class="rec-box" id="rec-box"></div>
+      </div>
+
+      <!-- GRÁFICO 4: Desempenho de todos os FIIs do segmento -->
+      <div class="card">
+        <div class="vs-label">
+          <div class="section-label" style="margin:0">Desempenho do segmento — DY real 2025 por fundo</div>
+          <div style="display:flex;gap:6px">
+            <span class="vs-tag vs-real" id="seg-label-badge">Segmento</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">
+          Compare o DY real de 2025 de todos os fundos do segmento selecionado. Use o horizonte para ajustar o período exibido.
+        </div>
+        <div class="horizon-tabs" id="segHorizonTabs">
+          <button class="horizon-tab active" onclick="setSegHorizon(3,this)">3 meses</button>
+          <button class="horizon-tab" onclick="setSegHorizon(6,this)">6 meses</button>
+          <button class="horizon-tab" onclick="setSegHorizon(12,this)">12 meses</button>
+        </div>
+        <div class="chart-wrap-tall"><canvas id="segChart"></canvas></div>
+        <div class="tip">Dados reais de 2025: brapi.dev Pro (extraídos em abr/2026). Cada linha representa um fundo do segmento.</div>
       </div>
     </div>
   </div>
@@ -483,10 +502,8 @@ let chartInst=null, vsChartInst=null, pandemiaChartInst=null, top3ChartInst=null
 let apiFundos={}, apiMeta={};
 
 function switchTab(tab){
-  ['manual','portfolio'].forEach((t,i)=>{
-    document.querySelectorAll('.tab')[i].classList.toggle('active',t===tab);
-    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
-  });
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  ['manual','portfolio'].forEach(t=>document.getElementById('tab-'+t)?.classList.toggle('active',t===tab));
 }
 
 async function initApi(){
@@ -531,8 +548,8 @@ function onHorizonteChange(){
     const semDados = !CACHE_2025[_vsSig];
     renderVsChart(_vsReal,_vsPred,_vsSig,hz,semDados);
   }
-  // Atualiza cards de resumo também
   if(_vsPred.length) updateResultCards(_vsPred, hz);
+  if(_segAtual) renderSegChart(_segAtual, hz);
 }
 
 function updateResultCards(preds, hz){
@@ -713,6 +730,9 @@ async function predictSingle(){
 
     <span style="font-size:11px;color:var(--text3)">Modelo: ${modelo} · Não constitui recomendação de investimento.</span>`;
 
+  // ── GRÁFICO 4: Desempenho do segmento ────────────────────────────────────
+  renderSegChart(seg, hz);
+
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -756,6 +776,82 @@ function renderPandemiaChart(seg, dyBase, hz, futLabels){
       <span>Diferença: <strong>${seta}</strong></span>
       <span style="color:var(--text3)">Melhor modelo para ${seg}: <strong>${melhor}</strong></span>
     </div>`;
+}
+
+// Mapa de fundos por segmento com dados reais 2025
+const SEG_REAL_2025 = {
+  'Logístico': ['HGLG11','XPLG11','VILG11','BRCO11','BTLG11','HLOG11','LGVT11','LVBI11'],
+  'Shoppings': ['XPML11','VISC11','HSML11','HGBS11','MALL11','ABCP11','PQDP11','SHDP11','SHPH11','VPSI11','VSHO11','WPLZ11','ELDO11','FIGS11','FLRP11'],
+  'Híbrido':   ['KNRI11','ALZR11','BRCR11','RBRD11','PATB11','VERE11','BRRI11'],
+  'Escritórios':['BBPO11','HGRE11','CBOP11','CEOC11','CNES11','GTWR11','RNGO11','TRNT11','FLMA11','FPAB11'],
+  'Lajes Corporativas':['EDGA11','FPNG11'],
+};
+
+const SEG_COLORS = [
+  '#1D9E75','#378ADD','#E85D24','#9B59B6','#F39C12',
+  '#E74C3C','#2ECC71','#3498DB','#E67E22','#1ABC9C',
+  '#8E44AD','#27AE60','#C0392B','#16A085','#D35400',
+];
+
+let segChartInst = null;
+let _segAtual = 'Logístico';
+let _segHz = 3;
+
+function setSegHorizon(h, el){
+  document.querySelectorAll('#segHorizonTabs .horizon-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  _segHz = h;
+  renderSegChart(_segAtual, h);
+}
+
+function renderSegChart(seg, hz){
+  _segAtual = seg;
+  const fundos = SEG_REAL_2025[seg] || [];
+  const meses  = MONTHS.slice(0, hz).map(m => m + '/25');
+
+  // Badge do segmento
+  const badge = document.getElementById('seg-label-badge');
+  if(badge) badge.textContent = seg;
+
+  const datasets = [];
+  fundos.forEach((sigla, i) => {
+    const dados = REAL_2025[sigla];
+    if(!dados) return;
+    const vals = dados.slice(0, hz).map(v => v != null ? +(v*100).toFixed(4) : null);
+    datasets.push({
+      label: sigla,
+      data:  vals,
+      borderColor: SEG_COLORS[i % SEG_COLORS.length],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: SEG_COLORS[i % SEG_COLORS.length],
+      tension: 0.4,
+      spanGaps: true,
+    });
+  });
+
+  if(segChartInst) segChartInst.destroy();
+  const canvas = document.getElementById('segChart');
+  if(!canvas) return;
+
+  segChartInst = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: meses, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(4) + '% a.m.' : '—'}` }}
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 } } },
+        y: { ticks: { font: { size: 11 }, callback: v => v.toFixed(3) + '%' }, title: { display: true, text: 'DY % a.m.', font: { size: 11 } } }
+      }
+    }
+  });
 }
 
 // ── Top 3 FIIs ────────────────────────────────────────────────────────────────
