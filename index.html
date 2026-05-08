@@ -288,7 +288,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="metric-grid">
           <div class="metric"><div class="metric-label">R²</div><div class="metric-val good" id="m-r2">—</div></div>
           <div class="metric"><div class="metric-label">MAPE</div><div class="metric-val" id="m-mape">—</div></div>
-          <div class="metric"><div class="metric-label">Fundos treino</div><div class="metric-val good">107</div></div>
+          <div class="metric"><div class="metric-label">Fundos treino</div><div class="metric-val good" id="m-fundos">62</div></div>
           <div class="metric"><div class="metric-label">Período</div><div class="metric-val" style="font-size:13px">2019–2024</div></div>
         </div>
         <div class="section-label">Importância das variáveis</div>
@@ -916,20 +916,24 @@ async function predictSingle(){
   renderPandemiaChart(seg, preds12[0] || dy, hz, futLabels);
 
   // Métricas — busca do /health por segmento
-  // Mapa de nomes com acento (HTML) para sem acento (API/meta.json)
+  // Métricas fixas do treino v4 — resultado do treinar_modelo_v4.py
+  const METRICAS_TREINO = {
+    'Logistico':   { r2: 0.3693, mape: 16.6, n_fundos: 10 },
+    'Hibrido':     { r2: 0.2084, mape: 20.8, n_fundos: 8  },
+    'Escritorios': { r2: 0.1231, mape: 36.8, n_fundos: 11 },
+    'Shoppings':   { r2: 0.0671, mape: 145.8, n_fundos: 15 },
+  };
   const SEG_KEY_MAP = {
     'Logístico':   'Logistico',
     'Híbrido':     'Hibrido',
     'Escritórios': 'Escritorios',
     'Shoppings':   'Shoppings',
-    'Lajes Corporativas': 'Lajes Corporativas',
   };
-  const segKey = SEG_KEY_MAP[seg] || seg;
-  const segMeta = (apiMeta.segmentos || {})[segKey] || {};
-  const r2val   = segMeta.r2   != null ? segMeta.r2   : null;
-  const mapeval = segMeta.mape != null ? segMeta.mape : null;
-  document.getElementById('m-r2').textContent   = r2val   != null ? r2val.toFixed(3)    : '—';
-  document.getElementById('m-mape').textContent = mapeval != null ? mapeval.toFixed(1)+'%' : '—';
+  const segKey  = SEG_KEY_MAP[seg] || seg;
+  const segMeta = METRICAS_TREINO[segKey] || {};
+  document.getElementById('m-r2').textContent    = segMeta.r2   != null ? segMeta.r2.toFixed(3)   : '—';
+  document.getElementById('m-mape').textContent  = segMeta.mape != null ? segMeta.mape.toFixed(1)+'%' : '—';
+  document.getElementById('m-fundos').textContent = segMeta.n_fundos != null ? segMeta.n_fundos : '62';
 
   // Importância
   const imp=[{l:'DY lag 1',v:34,c:'#1D9E75'},{l:'DY lag 2',v:22,c:'#1D9E75'},{l:'DY lag 3',v:14,c:'#1D9E75'},{l:'Segmento',v:16,c:'#9B59B6'},{l:'P/VP',v:14,c:'#5DCAA5'}];
