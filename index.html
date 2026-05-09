@@ -600,15 +600,39 @@ onSegChange();
  * Lags iniciais: últimos 3 meses reais de 2024 do REAL_2024.
  */
 async function predictRecursivo(sig, seg, modelo, n){
-  // Extrai lags reais de out/nov/dez 2024
+  // Lags iniciais: últimos 3 meses reais de 2024 do REAL_2024
+  // REAL_2024 tem os 12 meses mensais reais — garante lag1≠lag2≠lag3
   const real2024 = REAL_2024[sig] || [];
-  const vals = real2024.filter(v => v != null && v > 0.0001);
-  const pvp2024 = (PVP_2024[sig] || []).filter(v => v != null && v > 0);
+  const pvp2024  = (PVP_2024[sig]  || []).filter(v => v != null && v > 0);
+  const vals     = real2024.filter(v => v != null && v > 0.0001);
 
-  const lag1 = vals[vals.length - 1] || parseFloat(document.getElementById('dy').value)/100;
-  const lag2 = vals[vals.length - 2] || lag1;
-  const lag3 = vals[vals.length - 3] || lag2;
-  const pvp  = pvp2024[pvp2024.length - 1] || parseFloat(document.getElementById('pvp').value);
+  // Se não há dados 2024 suficientes, usa REAL_2025 (jan-mar/2025)
+  const real2025 = REAL_2025[sig] || [];
+  const vals2025 = real2025.filter(v => v != null && v > 0.0001);
+
+  // Prioridade: 3 últimos valores reais distintos de 2024
+  let lag1, lag2, lag3;
+  if(vals.length >= 3){
+    lag1 = vals[vals.length - 1]; // dez/2024
+    lag2 = vals[vals.length - 2]; // nov/2024
+    lag3 = vals[vals.length - 3]; // out/2024
+  } else if(vals.length >= 1){
+    // Complementa com 2025 se 2024 insuficiente
+    const todos = [...vals, ...vals2025].slice(-3);
+    lag1 = todos[todos.length - 1];
+    lag2 = todos[todos.length - 2] || lag1;
+    lag3 = todos[todos.length - 3] || lag2;
+  } else {
+    // Fallback: valor do campo DY da interface
+    lag1 = parseFloat(document.getElementById('dy').value)/100;
+    lag2 = lag1;
+    lag3 = lag1;
+  }
+
+  // P/VP: usa apiFundos (fundos_recentes.csv) ou PVP_2024
+  const apiF = apiFundos[sig];
+  const pvp  = (apiF && apiF.pvp) || pvp2024[pvp2024.length - 1]
+               || parseFloat(document.getElementById('pvp').value);
 
   const res = await fetch(API+'/predict/serie', {
     method: 'POST',
