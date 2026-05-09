@@ -652,6 +652,8 @@ async function predictRecursivo(sig, seg, modelo, n){
 
   if(!res.ok) throw new Error(`API /predict/serie: ${res.status}`);
   const data = await res.json();
+  console.log('🔍 /predict/serie resposta:', JSON.stringify(data.serie.slice(0,3)));
+  console.log('🔍 lags enviados:', {lag1, lag2, lag3, pvp, sig, seg});
   // Retorna array de DY decimal na ordem jan→dez
   return data.serie.map(m => m.dy_previsto);
 }
@@ -789,6 +791,7 @@ async function predictSingle(){
   // Corta para o horizonte selecionado
   const preds = preds12.slice(0, hz);
   _preds12Global = preds12; // salva para onHorizonteChange
+  console.log('🔍 preds12 recebido:', preds12.slice(0,3).map(v=>(v*100).toFixed(4)));
 
   setLoading('btnPredict','btnText','spinner',false,'Gerar previsão');
 
