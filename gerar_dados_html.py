@@ -1,3 +1,7 @@
+'''
+Esse script foi usado para converter o JSON extraído da brapi em código JavaScript para embutir no HTML
+'''
+
 import json
 
 with open('dados_fiis_2024_2025.json') as f:
