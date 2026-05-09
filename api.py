@@ -98,17 +98,14 @@ def carregar_artefatos():
     fundos_path = MODEL_DIR / "fundos_recentes.csv"
     fundos_df   = pd.read_csv(fundos_path) if fundos_path.exists() else None
 
-    # Stats de normalizacao por fundo (para Shoppings)
-    # Os stats sao derivados do fundos_recentes.csv
+    # Stats de normalizacao para Shoppings — carregados do arquivo gerado no treino
     stats_norm = None
-    if fundos_df is not None and "Dividendos_Yield" in fundos_df.columns:
-        # Reconstroi stats de normalizacao para Shoppings
-        df_shop = fundos_df[fundos_df.get("Segmento", pd.Series()) == "Shoppings"] if "Segmento" in fundos_df.columns else pd.DataFrame()
-        if not df_shop.empty:
-            stats_norm = df_shop.groupby("Sigla")["Dividendos_Yield"].agg(["mean","std"]).rename(
-                columns={"mean":"dy_media","std":"dy_std"}
-            )
-            stats_norm["dy_std"] = stats_norm["dy_std"].replace(0, 1)
+    stats_path = MODEL_DIR / "stats_normalizacao.json"
+    if stats_path.exists():
+        with open(stats_path, encoding="utf-8") as f:
+            stats_list = json.load(f)
+        stats_norm = pd.DataFrame(stats_list).set_index("sigla")
+        print(f"[✓] stats_normalizacao.json carregado ({len(stats_norm)} fundos Shoppings)")
 
     return meta, modelos_seg, fallback, fundos_df, stats_norm
 

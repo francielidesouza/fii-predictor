@@ -307,6 +307,18 @@ def treinar(caminho_arquivo: str):
         if meta:
             modelos_meta[seg] = meta
 
+        # Salva stats de normalização para Shoppings
+        if seg == "Shoppings":
+            df_lags_shop = construir_lags(df_seg)
+            stats = df_lags_shop.groupby(COL_SIGLA)[COL_DY].agg(["mean","std"]).rename(
+                columns={"mean":"dy_media","std":"dy_std"}
+            )
+            stats["dy_std"] = stats["dy_std"].fillna(1).replace(0, 1)
+            stats_dict = stats.reset_index().rename(columns={COL_SIGLA:"sigla"}).to_dict(orient="records")
+            with open(SAIDA_DIR / "stats_normalizacao.json", "w", encoding="utf-8") as f:
+                json.dump(stats_dict, f, ensure_ascii=False, indent=2)
+            print(f"  [✓] modelo/stats_normalizacao.json ({len(stats_dict)} fundos Shoppings)")
+
     # Modelo geral fallback
     print(f"\n{'─'*58}")
     print("  Modelo geral (fallback)...")
