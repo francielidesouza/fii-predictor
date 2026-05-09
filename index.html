@@ -170,7 +170,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
     <div>
       <div class="header-title">
         Preditor de DY — FIIs
-        <span class="badge badge-ml">v4 · Random Forest + XGBoost</span>
+        <span class="badge badge-ml">v4 · Random Forest</span>
       </div>
       <div class="header-sub">Modelo treinado 2019–2024 · brapi.dev Pro · 62 fundos · 4 segmentos</div>
     </div>
@@ -202,16 +202,8 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="field"><label>Sigla</label><select id="sigla" onchange="onSiglaChange()"></select></div>
       </div>
       <div class="grid2">
-        <div class="field"><label>Tipo do fundo</label>
-          <select id="tipo"><option>Fundo de Tijolo</option></select>
-        </div>
-        <div class="field"><label>Modelo de ML</label>
-          <select id="modelo">
-            <option value="Random Forest">Random Forest</option>
-            <option value="XGBoost">XGBoost</option>
-          </select>
-        </div>
       </div>
+      <input type="hidden" id="modelo" value="Random Forest">
       <div style="margin-bottom:12px">
         <div class="field"><label>Horizonte de previsão</label>
           <select id="horizonte" onchange="onHorizonteChange()">
@@ -288,7 +280,7 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
         <div class="metric-grid">
           <div class="metric"><div class="metric-label">R²</div><div class="metric-val good" id="m-r2">—</div></div>
           <div class="metric"><div class="metric-label">MAPE</div><div class="metric-val" id="m-mape">—</div></div>
-          <div class="metric"><div class="metric-label">Fundos treino</div><div class="metric-val good" id="m-fundos">62</div></div>
+          <div class="metric"><div class="metric-label">Fundos c/ dados 2025</div><div class="metric-val good" id="m-fundos">—</div></div>
           <div class="metric"><div class="metric-label">Período</div><div class="metric-val" style="font-size:13px">2019–2024</div></div>
         </div>
         <div class="section-label">Importância das variáveis</div>
@@ -329,73 +321,8 @@ footer{text-align:center;font-size:11px;color:var(--text3);margin-top:2rem;paddi
     </div>
   </div>
 
-  <!-- ── ABA 2: Portfólio ───────────────────────────────────────────────── -->
-  <div id="tab-portfolio" class="tab-panel">
-    <div class="card">
-      <div class="section-label">Formato esperado — DatasetUsuario.xlsx</div>
-      <div class="template-box">
-        <div class="template-title">📋 Como preencher o DatasetUsuario.xlsx</div>
-        <div style="font-size:11px;color:var(--amber-text);margin-bottom:8px;line-height:1.7">
-          <strong>Período mínimo:</strong> 6 meses por fundo (o modelo usa os 3 meses anteriores para prever o próximo)<br>
-          <strong>Segmentos aceitos:</strong> Logistico · Shoppings · Hibrido · Escritorios<br>
-          <strong>Segmentos excluídos:</strong> Títulos e Val. Mob. e FOF — o modelo não cobre esses segmentos<br>
-          <strong>Dica:</strong> Quanto mais meses históricos, melhor a predição
-        </div>
-        <table class="template-table">
-          <tr><th>Data</th><th>Sigla</th><th>Segmento</th><th>Tipo_do_Fundo</th><th>Dividendos_Yield</th><th>P_VP</th></tr>
-          <tr><td>2024-07-01</td><td>HGLG11</td><td>Logistico</td><td>Tijolo</td><td>0,0085</td><td>0,89</td></tr>
-          <tr><td>2024-08-01</td><td>HGLG11</td><td>Logistico</td><td>Tijolo</td><td>0,0084</td><td>0,91</td></tr>
-          <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
-          <tr><td>2024-12-01</td><td>HGLG11</td><td>Logistico</td><td>Tijolo</td><td>0,0089</td><td>0,88</td></tr>
-        </table>
-      </div>
-      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
-        <div class="upload-icon">📊</div>
-        <div class="upload-title">Clique ou arraste o DatasetUsuario.xlsx</div>
-        <div class="upload-sub">.xlsx ou .xls · máximo 5 MB</div>
-        <div class="upload-file-info" id="fileInfo"></div>
-      </div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="onFileSelect(event)">
-      <div style="margin-top:8px">
-        <div class="field"><label>Modelo</label>
-          <select id="port-modelo">
-            <option value="Random Forest">Random Forest</option>
-            <option value="XGBoost">XGBoost</option>
-          </select>
-        </div>
-      </div>
-      <input type="hidden" id="port-dataRef" value="2025-01">
-      <button class="btn" id="btnPortfolio" onclick="predictPortfolio()" disabled>
-        <span id="btnPortfolioText">Selecione um arquivo primeiro</span>
-        <div class="spinner" id="spinnerPortfolio"></div>
-      </button>
-      <div class="error-msg" id="errorPortfolio"></div>
-    </div>
-
-    <div id="portfolioResults" style="display:none">
-      <div class="card"><div class="section-label">Resumo</div><div class="summary-grid" id="portfolioSummary"></div></div>
-      <div class="card">
-        <div class="section-label">Previsão de DY — próximos meses</div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Apenas a previsão do modelo para o período selecionado. Linha contínua = previsão.</div>
-        <div class="horizon-tabs" id="horizonTabs">
-          <button class="horizon-tab active" onclick="setHorizon(3,this)">3 meses</button>
-          <button class="horizon-tab" onclick="setHorizon(6,this)">6 meses</button>
-          <button class="horizon-tab" onclick="setHorizon(12,this)">12 meses</button>
-        </div>
-        <div class="portfolio-chart-wrap"><canvas id="portfolioChart"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="section-label">Ranking por DY previsto</div>
-        <table class="result-table">
-          <thead><tr><th>#</th><th>Fundo</th><th>Segmento</th><th>DY médio (a.m.)</th><th>DY médio (a.a.)</th><th>Classe</th></tr></thead>
-          <tbody id="rankingBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <footer>
-    TCC — Predição de FIIs com Machine Learning v4 · Random Forest + XGBoost · Dataset 2019–2024<br>
+    TCC — Predição de FIIs com Machine Learning v4 · Random Forest · Dataset 2019–2024<br>
     Fonte: brapi.dev Pro · Não constitui recomendação de investimento.
   </footer>
 </div>
@@ -427,13 +354,6 @@ const SEG_FIIS = {
   'Lajes Corporativas':['HGRE11','BRCR11','JSRE11'],
   'Híbrido':['KNRI11','ALZR11','BRCR11','RBRD11','PATB11','VERE11','BRRI11'],
   'Escritórios':['BBPO11','HGRE11','CBOP11','CEOC11','CNES11','GTWR11'],
-};
-const SEG_TIPO = {
-  'Logístico':'Fundo de Tijolo',
-  'Shoppings':'Fundo de Tijolo',
-  'Lajes Corporativas':'Fundo de Tijolo',
-  'Híbrido':'Fundo de Tijolo',
-  'Escritórios':'Fundo de Tijolo',
 };
 
 
@@ -611,7 +531,7 @@ const PVP_2024 = {
 // Cache local para não repetir buscas (mantido por compatibilidade)
 const CACHE_2025 = {...REAL_2025};
 
-let chartInst=null, vsChartInst=null, pandemiaChartInst=null, top3ChartInst=null, portfolioChartInst=null;
+let chartInst=null, vsChartInst=null, pandemiaChartInst=null;
 let apiFundos={}, apiMeta={};
 
 function switchTab(tab){
@@ -625,7 +545,7 @@ async function initApi(){
     if(r.ok){
       const h=await r.json(); apiMeta=h;
       document.getElementById('apiDot').classList.add('online');
-      document.getElementById('apiStatus').textContent=`API online · ${h.n_fundos||62} fundos · Modelo: Random Forest + XGBoost`;
+      document.getElementById('apiStatus').textContent=`API online · ${h.n_fundos||62} fundos · Modelo: Random Forest`;
       // Carrega dados recentes de todos os fundos para preencher DY e PVP automaticamente
       try{
         const rf=await fetch(API+'/fundos',{signal:AbortSignal.timeout(10000)});
@@ -662,7 +582,8 @@ function onSegChange(){
   const seg=document.getElementById('segmento').value;
   const el=document.getElementById('sigla'); el.innerHTML='';
   (SEG_FIIS[seg]||[]).forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f;el.appendChild(o);});
-  document.getElementById('tipo').value=SEG_TIPO[seg]||'Fundo de Tijolo';
+  // Tipo do fundo é sempre Tijolo para os segmentos disponíveis
+  // document.getElementById('tipo') removido — não exibido na interface
   // Preenche dados do primeiro fundo do segmento
   preencherDadosFundo(el.value);
 }
@@ -699,6 +620,7 @@ async function predictRecursivo(sig, seg, modelo, n){
       dy_lag2:  lag2,
       dy_lag3:  lag3,
       pvp:      pvp,
+      modelo:   modelo,
       n_meses:  n,
     }),
     signal: AbortSignal.timeout(60000)
@@ -916,13 +838,7 @@ async function predictSingle(){
   renderPandemiaChart(seg, preds12[0] || dy, hz, futLabels);
 
   // Métricas — busca do /health por segmento
-  // Métricas fixas do treino v4 — resultado do treinar_modelo_v4.py
-  const METRICAS_TREINO = {
-    'Logistico':   { r2: 0.3693, mape: 16.6, n_fundos: 10 },
-    'Hibrido':     { r2: 0.2084, mape: 20.8, n_fundos: 8  },
-    'Escritorios': { r2: 0.1231, mape: 36.8, n_fundos: 11 },
-    'Shoppings':   { r2: 0.0671, mape: 145.8, n_fundos: 15 },
-  };
+  // Métricas do segmento — vindas da API /health (apiMeta.segmentos)
   const SEG_KEY_MAP = {
     'Logístico':   'Logistico',
     'Híbrido':     'Hibrido',
@@ -930,10 +846,13 @@ async function predictSingle(){
     'Shoppings':   'Shoppings',
   };
   const segKey  = SEG_KEY_MAP[seg] || seg;
-  const segMeta = METRICAS_TREINO[segKey] || {};
-  document.getElementById('m-r2').textContent    = segMeta.r2   != null ? segMeta.r2.toFixed(3)   : '—';
-  document.getElementById('m-mape').textContent  = segMeta.mape != null ? segMeta.mape.toFixed(1)+'%' : '—';
-  document.getElementById('m-fundos').textContent = segMeta.n_fundos != null ? segMeta.n_fundos : '62';
+  const segMeta = (apiMeta.segmentos || {})[segKey] || {};
+  document.getElementById('m-r2').textContent   = segMeta.r2   != null ? segMeta.r2.toFixed(3)    : '—';
+  document.getElementById('m-mape').textContent = segMeta.mape != null ? segMeta.mape.toFixed(1)+'%' : '—';
+  const fundosSeg = SEG_REAL_2025[seg] || [];
+  const fundosComDados = fundosSeg.filter(s => REAL_2025[s] && REAL_2025[s].some(v => v != null));
+  const nTreino = segMeta.n_fundos != null ? segMeta.n_fundos : '?';
+  document.getElementById('m-fundos').textContent = `${fundosComDados.length} / ${nTreino}`;
 
   // Importância
   const imp=[{l:'DY lag 1',v:34,c:'#1D9E75'},{l:'DY lag 2',v:22,c:'#1D9E75'},{l:'DY lag 3',v:14,c:'#1D9E75'},{l:'Segmento',v:16,c:'#9B59B6'},{l:'P/VP',v:14,c:'#5DCAA5'}];
@@ -953,16 +872,18 @@ async function predictSingle(){
 }
 
 // ── Gráfico pandemia vs sem pandemia ─────────────────────────────────────────
-// R² por segmento — com pandemia e sem pandemia (do treino v4)
-const R2_PANDEMIA = {
-  'Logístico':   {com:0.3693, sem:0.3028},
-  'Híbrido':     {com:0.2084, sem:0.1508},
-  'Escritórios': {com:0.1231, sem:0.1072},
-  'Shoppings':   {com:0.0671, sem:0.0560},
-};
-
 function renderPandemiaChart(seg, dyBase, hz, futLabels){
-  const r2info = R2_PANDEMIA[seg] || {com:0, sem:0};
+  // R² com e sem pandemia — vindos da API /health (apiMeta.segmentos)
+  const SEG_KEY_MAP = {
+    'Logístico':'Logistico','Híbrido':'Hibrido',
+    'Escritórios':'Escritorios','Shoppings':'Shoppings'
+  };
+  const segKey  = SEG_KEY_MAP[seg] || seg;
+  const segInfo = (apiMeta.segmentos || {})[segKey] || {};
+  const r2com   = segInfo.r2 != null ? segInfo.r2 : null;
+  // sem_pandemia vem do sub-objeto se a API retornar (futuro) — fallback: r2com
+  const r2sem   = (segInfo.sem_pandemia || {}).r2 != null ? segInfo.sem_pandemia.r2 : null;
+  const r2info  = { com: r2com, sem: r2sem };
   // Série com pandemia — base real do modelo
   const predCom = buildSeries(dyBase, hz).map(v=>+(v*100).toFixed(4));
   // Série sem pandemia — ligeiramente diferente (simula variação do modelo alternativo)
@@ -1118,181 +1039,20 @@ function renderSegChartComFiltro(seg, hz){
   });
 }
 
-// ── Top 3 FIIs ────────────────────────────────────────────────────────────────
-// Top 3 apenas com segmentos cobertos pelo modelo preditivo
-// (Titulos e Val. Mob. excluido — limitacao metodologica documentada no TCC)
-const TOP3 = [
-  {rank:'🥇',sigla:'HGLG11',seg:'Logístico',tipo:'Fundo de Tijolo',dy_medio:0.0082,pvp_medio:0.91,class:'gold',
-   why:'Maior FII logístico do Brasil em patrimônio. Contratos atípicos de longo prazo (7 a 10 anos) com grandes operadores garantem previsibilidade de renda. P/VP de 0,91 indica desconto — modelo R²=0.37 confirma padrão consistente de DY no segmento.'},
-  {rank:'🥈',sigla:'XPML11',seg:'Shoppings',tipo:'Fundo de Tijolo',dy_medio:0.0078,pvp_medio:0.87,class:'silver',
-   why:'Um dos maiores FIIs de shoppings do Brasil, com portfólio diversificado em centros comerciais premium. DY com sazonalidade em novembro/dezembro (alta temporada). Normalização z-score aplicada no modelo para capturar variação relativa.'},
-  {rank:'🥉',sigla:'KNRI11',seg:'Híbrido',tipo:'Fundo de Tijolo',dy_medio:0.0075,pvp_medio:0.93,class:'bronze',
-   why:'FII híbrido com carteira combinando imóveis logísticos e corporativos. A diversificação entre segmentos reduz a volatilidade do DY — característica capturada pelo modelo com R²=0.21 para o segmento Híbrido.'},
-];
 
-function renderTop3(){
-  document.getElementById('top3Cards').innerHTML=TOP3.map(f=>`
-    <div class="top3-card ${f.class}">
-      <div class="top3-rank">${f.rank}</div>
-      <div class="top3-sigla">${f.sigla}</div>
-      <div class="top3-seg">${f.seg}</div>
-      <div class="top3-label">DY médio mensal (2019–2024)</div>
-      <div class="top3-dy">${(f.dy_medio*100).toFixed(3)}%</div>
-      <div class="top3-label" style="margin-top:4px">P/VP médio</div>
-      <div style="font-size:16px;font-weight:600;margin-bottom:4px">${f.pvp_medio.toFixed(2)}x</div>
-      <span class="top3-badge" style="background:var(--bg3);color:var(--text2)">${f.tipo}</span>
-      <div class="top3-why">${f.why}</div>
-    </div>`).join('');
-
-  // Gráfico top 3
-  const anos=['2019','2020','2021','2022','2023','2024'];
-  const colors=['#E8A020','#378ADD','#1D9E75'];
-  if(top3ChartInst)top3ChartInst.destroy();
-  top3ChartInst=new Chart(document.getElementById('top3Chart').getContext('2d'),{
-    type:'line',
-    data:{labels:anos,datasets:TOP3.map((f,i)=>({
-      label:f.sigla,
-      data:(DY_HIST[f.sigla]||Array(6).fill(f.dy_medio)).map(v=>+(v*100).toFixed(4)),
-      borderColor:colors[i],backgroundColor:colors[i]+'18',borderWidth:2.5,
-      pointRadius:4,pointBackgroundColor:colors[i],tension:0.4,fill:i===0
-    }))},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{font:{size:12}}},tooltip:{mode:'index',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(3)}% a.m.`}}},
-      scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'},title:{display:true,text:'DY % a.m.',font:{size:11}}}}}
-  });
-
-  document.getElementById('top3Why').innerHTML=`
-    <strong>Por que esses fundos lideram entre os segmentos cobertos pelo modelo?</strong><br><br>
-    O ranking considera apenas os segmentos para os quais o modelo preditivo foi treinado com sucesso — Logístico, Shoppings e Híbrido — excluindo Títulos e Val. Mob., cujo DY depende do spread individual dos CRIs, variável não disponível em fonte pública estruturada.<br><br>
-    <strong>HGLG11</strong> lidera graças aos contratos atípicos de longo prazo com grandes operadores logísticos, que garantem previsibilidade de renda. O segmento Logístico obteve o melhor R² do modelo (0.37), confirmando que o padrão de DY desses fundos é o mais capturável pelas variáveis disponíveis.<br><br>
-    <strong>XPML11</strong> representa o segmento Shoppings, que apresenta sazonalidade marcada em novembro e dezembro (alta temporada do varejo). O modelo aplica normalização z-score por fundo para capturar a variação relativa do DY, obtendo R²=0.07 positivo.<br><br>
-    <strong>KNRI11</strong> é o principal representante do segmento Híbrido, que combina imóveis logísticos e corporativos. A diversificação reduz a volatilidade do DY e o modelo obteve R²=0.21 para esse segmento.<br><br>
-    <em style="font-size:11px;color:var(--text3)">Ranking baseado no DY médio mensal do dataset de treino (brapi.dev Pro, jan/2019–dez/2024). Não constitui recomendação de investimento.</em>`;
-}
 
 // ── Portfólio ─────────────────────────────────────────────────────────────────
-let portfolioData=[];let fundResults=[];
 
-function onDragOver(e){e.preventDefault();document.getElementById('uploadArea').classList.add('drag');}
-function onDragLeave(){document.getElementById('uploadArea').classList.remove('drag');}
-function onDrop(e){e.preventDefault();document.getElementById('uploadArea').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)processFile(f);}
-function onFileSelect(e){const f=e.target.files[0];if(f)processFile(f);}
 function parseNum(v){if(v==null)return null;if(typeof v==='number')return v;return parseFloat(String(v).replace(',','.'))}
 function showErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display='block';}
 
-function processFile(file){
-  if(!file.name.match(/\.xlsx?$/i)){showErr('errorPortfolio','Formato inválido. Use .xlsx');return;}
-  document.getElementById('errorPortfolio').style.display='none';
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const sheetName=wb.SheetNames.find(n=>n.toLowerCase().includes('portf'))||wb.SheetNames[0];
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{defval:null,raw:false});
-      if(!rows.length){showErr('errorPortfolio','Planilha vazia.');return;}
-      const byFund={};
-      rows.forEach(r=>{const s=String(r.Sigla||r.sigla||'').trim().toUpperCase();if(s&&s!=='SIGLA'){if(!byFund[s])byFund[s]=[];byFund[s].push(r);}});
-      const valid=[],invalid=[];
-      Object.keys(byFund).forEach(s=>{
-        const rs=byFund[s].sort((a,b)=>new Date(a.Data||a.data||0)-new Date(b.Data||b.data||0));
-        if(rs.length<3)invalid.push(s);
-        else valid.push({
-          sigla:s,rows:rs.slice(-3),
-          segmento:rs[0].Segmento||rs[0].segmento||'',
-          tipo:rs[0].Tipo_do_Fundo||rs[0].tipo_do_fundo||''
-        });
-      });
-      if(!valid.length){showErr('errorPortfolio','Nenhum fundo com 3+ meses.');return;}
-      portfolioData=valid;
-      document.getElementById('fileInfo').textContent=`✓ ${file.name} — ${valid.length} fundo(s): ${valid.map(f=>f.sigla).join(', ')}${invalid.length?' · Ignorados: '+invalid.join(', '):''}`;
-      const btn=document.getElementById('btnPortfolio');btn.disabled=false;
-      document.getElementById('btnPortfolioText').textContent=`Analisar portfólio (${valid.length} fundos)`;
-    }catch(err){showErr('errorPortfolio','Erro ao ler: '+err.message);}
-  };
-  reader.readAsArrayBuffer(file);
-}
 
 let portChartInst=null;
 
-async function predictPortfolio(){
-  if(!portfolioData.length)return;
-  const modelo=document.getElementById('port-modelo').value;
-  const dataRef=document.getElementById('port-dataRef').value;
-  setLoading('btnPortfolio','btnPortfolioText','spinnerPortfolio',true,'');
-  document.getElementById('errorPortfolio').style.display='none';
-  document.getElementById('portfolioResults').style.display='none';
-  fundResults=[];
-
-  for(let i=0;i<portfolioData.length;i++){
-    const {sigla,rows,segmento,tipo}=portfolioData[i];
-    const lag1=parseNum(rows[2]['Dividendos_Yield'])||0.008;
-    const lag2=parseNum(rows[1]['Dividendos_Yield'])||0.008;
-    const lag3=parseNum(rows[0]['Dividendos_Yield'])||0.008;
-    let dyPrev=lag1*1.015;
-    try{
-      const res=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({sigla,dy_lag1:lag1,dy_lag2:lag2,dy_lag3:lag3,modelo,data_referencia:dataRef+'-01'}),
-        signal:AbortSignal.timeout(30000)});
-      if(res.ok){const d=await res.json();dyPrev=d.dy_previsto;}
-    }catch{}
-    fundResults.push({sigla,segmento,tipo,color:FUND_COLORS[i%FUND_COLORS.length],preds12:buildSeries(dyPrev,12),ok:true,foraDoTreino:!FUNDOS_TREINO.has(sigla)});
-  }
-
-  setLoading('btnPortfolio','btnPortfolioText','spinnerPortfolio',false,`Analisar portfólio (${portfolioData.length} fundos)`);
-  const validos=fundResults.filter(f=>f.ok);
-  if(!validos.length){showErr('errorPortfolio','Nenhum fundo processado.');return;}
-  document.getElementById('portfolioResults').style.display='block';
-
-  const avgDY=validos.reduce((s,f)=>s+f.preds12[0],0)/validos.length;
-  const best=validos.reduce((a,b)=>a.preds12[0]>b.preds12[0]?a:b);
-  document.getElementById('portfolioSummary').innerHTML=`
-    <div class="summary-card highlight"><div class="summary-label">Melhor previsto</div><div class="summary-val good">${best.sigla}</div><div class="summary-sub">${(best.preds12[0]*100).toFixed(3)}% a.m.</div></div>
-    <div class="summary-card"><div class="summary-label">DY médio previsto</div><div class="summary-val">${(avgDY*12*100).toFixed(2)}%</div><div class="summary-sub">ao ano</div></div>
-    <div class="summary-card"><div class="summary-label">Fundos</div><div class="summary-val">${validos.length}</div><div class="summary-sub">analisados</div></div>
-    <div class="summary-card"><div class="summary-label">Modelo</div><div class="summary-val" style="font-size:13px">${modelo.split(' ')[0]}</div><div class="summary-sub">${dataRef}</div></div>`;
-
-  renderPortfolioChart(3);renderRanking(3);
-  document.getElementById('portfolioResults').scrollIntoView({behavior:'smooth',block:'start'});
-}
 
 function setHorizon(h,el){document.querySelectorAll('#horizonTabs .horizon-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderPortfolioChart(h);}
 
-function renderPortfolioChart(h){
-  const validos=fundResults.filter(f=>f.ok);
-  const [ano0,mes0]=document.getElementById('port-dataRef').value.split('-').map(Number);
-  const labels=Array.from({length:h},(_,i)=>{const d=new Date(ano0,mes0-1+i,1);return MONTHS[d.getMonth()]+'/'+String(d.getFullYear()).slice(2);});
-  // Apenas previsão — sem histórico
-  const datasets=validos.map(f=>({
-    label:f.sigla,
-    data:f.preds12.slice(0,h).map(v=>+(v*100).toFixed(4)),
-    borderColor:f.color,backgroundColor:f.color+'20',
-    borderWidth:2.5,pointRadius:4,pointBackgroundColor:f.color,tension:0.4,fill:false
-  }));
-  if(portChartInst)portChartInst.destroy();
-  portChartInst=new Chart(document.getElementById('portfolioChart').getContext('2d'),{
-    type:'line',data:{labels,datasets},
-    options:{responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{legend:{labels:{font:{size:11}}}},
-      scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11},callback:v=>v.toFixed(2)+'%'},title:{display:true,text:'DY % a.m.',font:{size:11}}}}}
-  });
-}
 
-function renderRanking(h){
-  const validos=fundResults.filter(f=>f.ok);
-  const ranked=[...validos].map(f=>({...f,avg:f.preds12.slice(0,h).reduce((s,v)=>s+v,0)/h})).sort((a,b)=>b.avg-a.avg);
-  document.getElementById('rankingBody').innerHTML=ranked.map((f,i)=>{
-    const rc=i===0?'rank-1':i===1?'rank-2':'rank-other';
-    const cls=f.avg>0.0085?'dy-high':f.avg>0.007?'dy-mid':'dy-low';
-    const label=f.avg>0.0085?'DY alto':f.avg>0.007?'DY moderado':'DY baixo';
-    return`<tr><td><span class="rank-badge ${rc}">${i+1}</span></td>
-      <td><span class="fundo-dot" style="background:${f.color}"></span><strong>${f.sigla}</strong>
-      ${f.foraDoTreino?'<span style="font-size:10px;color:var(--amber-text);margin-left:4px" title="Fundo não estava no dataset de treino — precisão pode ser menor">⚠️ fora do treino</span>':''}</td>
-      <td style="font-size:12px;color:var(--text3)">${f.segmento||'—'}</td>
-      <td>${(f.avg*100).toFixed(3)}%</td><td><strong>${(f.avg*12*100).toFixed(2)}%</strong></td>
-      <td><span class="dy-pill ${cls}">${label}</span></td></tr>`;
-  }).join('');
-}
 </script>
 </body>
 </html>

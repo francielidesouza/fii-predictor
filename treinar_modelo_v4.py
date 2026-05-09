@@ -11,7 +11,6 @@ Segmentos excluidos:
 Features:
     DY_lag1, DY_lag2, DY_lag3  — autocorrelacao temporal
     PVP_lag1                    — P/VP do mes anterior
-    CDI                         — apenas para Titulos e Val. Mob. (BCB SGS 4391)
     SELIC                       — demais segmentos (BCB SGS 4390)
     Tipo_do_Fundo               — one-hot quando > 1 tipo no segmento
 
@@ -25,7 +24,7 @@ import argparse, json, warnings, joblib, requests
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_absolute_error, r2_score, mean_absolute_percentage_error
 from sklearn.preprocessing import OneHotEncoder
@@ -40,7 +39,6 @@ COL_DATA     = "Data"
 COL_DY       = "Dividendos_Yield"
 COL_PVP      = "P_VP"
 COL_SELIC    = "SELIC"
-COL_CDI      = "CDI"
 COL_SEGMENTO = "Segmento"
 COL_TIPO     = "Tipo_do_Fundo"
 
@@ -69,9 +67,9 @@ def carregar_dados(caminho: str) -> pd.DataFrame:
 
 
 def buscar_indicadores() -> tuple:
-    """Busca SELIC (4390) e CDI (4391) do BCB SGS. Retorna (selic_dict, cdi_dict)."""
-    selic, cdi = {}, {}
-    for codigo, nome, destino in [(4390, "SELIC", selic), (4391, "CDI", cdi)]:
+    """Busca SELIC (4390) do BCB SGS. Retorna selic_dict."""
+    selic = {}
+    for codigo, nome, destino in [(4390, "SELIC", selic)]:
         print(f"[→] Buscando {nome} do BCB SGS {codigo}...", end=" ")
         try:
             r = requests.get(
@@ -88,7 +86,7 @@ def buscar_indicadores() -> tuple:
                 print(f"⚠ HTTP {r.status_code}")
         except Exception as e:
             print(f"⚠ falhou ({e})")
-    return selic, cdi
+    return selic
 
 
 def adicionar_indicador(df: pd.DataFrame, indicador: dict, col_nome: str) -> pd.DataFrame:
@@ -145,7 +143,7 @@ def avaliar_modelo(nome, pipe, X_train, y_train, X_test, y_test):
     return {"mae": mae, "r2": r2, "mape": mape, "cv_r2": cv_r2}
 
 
-def treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=False):
+def treinar_segmento(seg, df_seg, selic, excluir_pandemia=False):
     """Treina modelos para um segmento. Retorna (melhor_pipe, melhor_nome, meta_dict)."""
 
     label = f"{seg}{' (sem pandemia)' if excluir_pandemia else ''}"
@@ -161,14 +159,9 @@ def treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=False):
         df_work = df_work[~((mes >= PANDEMIA_INI) & (mes <= PANDEMIA_FIM))]
         print(f"  ⚠ Pandemia excluida ({PANDEMIA_INI} a {PANDEMIA_FIM})")
 
-    # Titulos e Val. Mob. usa CDI — indexador real dos CRIs
-    # Demais segmentos usam SELIC como variavel macroeconomica
+    # SELIC como variavel macroeconomica para todos os segmentos
     col_macro = None
-    if seg == "Titulos e Val. Mob." and cdi:
-        df_work = adicionar_indicador(df_work, cdi, COL_CDI)
-        col_macro = COL_CDI
-        print(f"  + CDI mensal (BCB SGS 4391) — indexador dos CRIs")
-    elif selic:
+    if selic:
         df_work = adicionar_indicador(df_work, selic, COL_SELIC)
         col_macro = COL_SELIC
         print(f"  + SELIC mensal (BCB SGS 4390)")
@@ -211,21 +204,7 @@ def treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=False):
             n_estimators=200, max_depth=5, min_samples_leaf=3,
             max_features=0.7, random_state=42, n_jobs=-1
         ),
-        "Gradient Boosting": GradientBoostingRegressor(
-            n_estimators=200, learning_rate=0.05, max_depth=3,
-            subsample=0.8, min_samples_leaf=3, random_state=42
-        ),
     }
-    try:
-        from xgboost import XGBRegressor
-        modelos_sk["XGBoost"] = XGBRegressor(
-            n_estimators=200, learning_rate=0.05, max_depth=3,
-            subsample=0.8, colsample_bytree=0.7,
-            min_child_weight=3, random_state=42, verbosity=0
-        )
-    except ImportError:
-        pass
-
     melhor_r2    = -999
     melhor_nome  = None
     melhor_pipe  = None
@@ -265,13 +244,13 @@ def treinar(caminho_arquivo: str):
 
     print(f"\n{'='*58}")
     print(f"  FII Predictor — Treinamento v4 (por segmento)")
-    print(f"  CDI para Titulos | SELIC para demais | com/sem pandemia")
+    print(f"  Random Forest | SELIC | com e sem pandemia")
     print(f"{'='*58}\n")
 
     df = carregar_dados(caminho_arquivo)
 
-    # Busca SELIC e CDI do BCB
-    selic, cdi = buscar_indicadores()
+    # Busca SELIC do BCB
+    selic = buscar_indicadores()
 
     # Filtra apenas Tijolo e Papel
     df = df[df[COL_TIPO].isin({"Tijolo", "Papel"})]
@@ -290,7 +269,7 @@ def treinar(caminho_arquivo: str):
     for seg in sorted(segs_validos):
         n    = df[df[COL_SEGMENTO] == seg][COL_SIGLA].nunique()
         tipo = df[df[COL_SEGMENTO] == seg][COL_TIPO].unique().tolist()
-        macro = "CDI" if seg == "Titulos e Val. Mob." else "SELIC"
+        macro = "SELIC"
         print(f"    {seg:25s}: {n:3d} fundos | {tipo} | macro: {macro}")
 
     segmentos      = sorted(df[COL_SEGMENTO].dropna().unique())
@@ -302,18 +281,20 @@ def treinar(caminho_arquivo: str):
         df_seg = df[df[COL_SEGMENTO] == seg].copy()
 
         # Com pandemia
-        pipe, nome, meta = treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=False)
+        pipe, nome, meta = treinar_segmento(seg, df_seg, selic, excluir_pandemia=False)
         if pipe is not None:
             slug = seg.lower().replace(" ", "_").replace("/", "_").replace(".", "")
+            # Salva o melhor modelo (nome genérico — usado como padrão)
             path = SAIDA_DIR / f"modelo_{slug}.pkl"
             joblib.dump(pipe, path)
-            print(f"  [✓] {path} ({path.stat().st_size/1024:.0f} KB)")
+            print(f"  [✓] {path} ({path.stat().st_size/1024:.0f} KB) — {nome}")
             meta["arquivo"]  = f"modelo_{slug}.pkl"
             meta["n_fundos"] = int(df_seg[COL_SIGLA].nunique())
             resultados_r2[seg] = meta["metricas"][nome]["r2"]
 
+
         # Sem pandemia
-        pipe_sp, nome_sp, meta_sp = treinar_segmento(seg, df_seg, selic, cdi, excluir_pandemia=True)
+        pipe_sp, nome_sp, meta_sp = treinar_segmento(seg, df_seg, selic, excluir_pandemia=True)
         if pipe_sp is not None:
             slug = seg.lower().replace(" ", "_").replace("/", "_").replace(".", "")
             path_sp = SAIDA_DIR / f"modelo_{slug}_sem_pandemia.pkl"
@@ -350,16 +331,16 @@ def treinar(caminho_arquivo: str):
     r2_vals    = [v for v in resultados_r2.values()    if v > -999]
     r2_vals_sp = [v for v in resultados_r2_sp.values() if v > -999]
     meta_final = {
-        "versao":                    "4.0-por-segmento-cdi",
-        "estrategia":                "Modelo por segmento | CDI para Titulos | SELIC para demais",
-        "features":                  "DY_lag1, DY_lag2, DY_lag3, PVP_lag1, CDI/SELIC, Tipo_do_Fundo",
+        "versao":                    "4.1-por-segmento-rf",
+        "estrategia":                "Modelo por segmento | Random Forest | SELIC",
+        "features":                  "DY_lag1, DY_lag2, DY_lag3, PVP_lag1, SELIC, Tipo_do_Fundo",
         "pandemia_excluida":         f"{PANDEMIA_INI} a {PANDEMIA_FIM}",
         "segmentos_excluidos":       SEGS_EXCLUIR,
         "modelos_por_segmento":      modelos_meta,
         "r2_medio_com_pandemia":     round(float(np.mean(r2_vals)), 4)    if r2_vals    else None,
         "r2_medio_sem_pandemia":     round(float(np.mean(r2_vals_sp)), 4) if r2_vals_sp else None,
         "melhor_modelo":             "por segmento",
-        "modelos":                   ["Random Forest", "Gradient Boosting", "XGBoost"],
+        "modelos":                   ["Random Forest"],
         "n_fundos_total":            int(df[COL_SIGLA].nunique()),
         "dataset":                   Path(caminho_arquivo).name,
     }
@@ -385,7 +366,7 @@ def treinar(caminho_arquivo: str):
         r2sp = resultados_r2_sp.get(seg, float("nan"))
         diff = r2sp - r2c if not (np.isnan(r2c) or np.isnan(r2sp)) else float("nan")
         seta = f"↑ +{diff:.4f}" if diff > 0 else f"↓ {diff:.4f}" if not np.isnan(diff) else ""
-        macro = "CDI" if seg == "Titulos e Val. Mob." else "SELIC"
+        macro = "SELIC"
         print(f"  {seg:25s} {macro:6s} {r2c:>14.4f}    {r2sp:>14.4f}  {seta}")
     print(f"{'─'*58}")
     print(f"  {'Media':25s} {'':6s} {np.mean(r2_vals):>14.4f}    {np.mean(r2_vals_sp):>14.4f}")

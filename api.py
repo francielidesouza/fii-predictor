@@ -4,7 +4,7 @@ api.py v4
 API FastAPI para previsão de Dividend Yield de FIIs.
 Modelos treinados por segmento:
     - Logistico    (Random Forest, SELIC)
-    - Hibrido      (XGBoost, SELIC)
+    - Hibrido      (Random Forest, SELIC)
     - Escritorios  (Random Forest, SELIC)
     - Shoppings    (Random Forest, SELIC, normalizado z-score por fundo)
 
@@ -39,8 +39,8 @@ MODEL_DIR   = Path("modelo")
 
 app = FastAPI(
     title="FII Predictor API v4",
-    description="Previsão de DY por segmento — Logístico, Híbrido, Escritórios, Shoppings",
-    version="4.0.0",
+    description="Previsão de DY por segmento com Random Forest — Logístico, Híbrido, Escritórios, Shoppings",
+    version="4.1.0",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -234,6 +234,9 @@ def health():
     for seg, info in mps.items():
         melhor = info.get("melhor", "")
         met    = info.get("metricas", {}).get(melhor, {})
+        # R² sem pandemia — vem do sub-objeto sem_pandemia
+        sp     = info.get("sem_pandemia", {})
+        met_sp = sp.get("metricas", {}).get(sp.get("melhor", melhor), {})
         resumo[seg] = {
             "melhor_modelo": melhor,
             "r2":    met.get("r2"),
@@ -243,12 +246,18 @@ def health():
             "n_fundos": info.get("n_fundos"),
             "macro": SEGMENTOS_CONFIG.get(seg, {}).get("macro"),
             "normalizado": SEGMENTOS_CONFIG.get(seg, {}).get("normalizado", False),
+            "sem_pandemia": {
+                "r2":    met_sp.get("r2"),
+                "mae":   met_sp.get("mae"),
+                "mape":  met_sp.get("mape"),
+            } if met_sp else None,
         }
     return {
         "status":          "ok",
         "versao_modelo":   META.get("versao") if META else None,
         "n_fundos_total":  META.get("n_fundos_total") if META else None,
         "r2_medio":        META.get("r2_medio_com_pandemia") if META else None,
+        "r2_medio_sem_pandemia": META.get("r2_medio_sem_pandemia") if META else None,
         "segmentos":       resumo,
         "melhor_modelo":   "por segmento",
         "n_fundos":        META.get("n_fundos_total") if META else None,
@@ -357,8 +366,6 @@ def prever(entrada: EntradaPredicao):
     if "SELIC" in num_cols:
         row["SELIC"] = selic
 
-    if "CDI" in num_cols:
-        row["CDI"] = selic  # CDI ~ SELIC para previsao futura
 
     if "Tipo_do_Fundo" in cat_cols:
         row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or "Tijolo"
@@ -435,8 +442,6 @@ def comparar_pandemia(entrada: EntradaPredicao):
             row["PVP_lag1"] = entrada.pvp if entrada.pvp is not None else np.nan
         if "SELIC" in num_cols:
             row["SELIC"] = selic
-        if "CDI" in num_cols:
-            row["CDI"] = selic
         if "Tipo_do_Fundo" in cat_cols:
             row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or "Tijolo"
 
@@ -483,6 +488,7 @@ class EntradaSerie(BaseModel):
     dy_lag3:        float          = Field(...,  example=0.006989, description="DY out/2024")
     pvp:            Optional[float]= Field(None, example=0.8054)
     tipo_do_fundo:  Optional[str]  = Field(None, example="Tijolo")
+    modelo:         str            = Field("Random Forest", description="Modelo de ML (atualmente: Random Forest)")
     n_meses:        int            = Field(12,   ge=1, le=12, description="Quantos meses prever")
     excluir_pandemia: bool         = Field(False)
 
@@ -512,20 +518,40 @@ def prever_serie(entrada: EntradaSerie):
     selic       = _get_selic_atual()
     num_cols, cat_cols = _get_num_cat_cols(seg)
 
-    # Seleciona pipe
-    if entrada.excluir_pandemia:
-        slug = seg.lower().replace(" ","_").replace("/","_").replace(".","")
-        pkl  = MODEL_DIR / f"modelo_{slug}_sem_pandemia.pkl"
-        pipe = joblib.load(pkl) if pkl.exists() else MODELOS_SEG.get(seg, FALLBACK)
-    else:
-        pipe = MODELOS_SEG.get(seg, FALLBACK)
+    # Mapa de nome amigável → slug do arquivo
+    MODELO_SLUG = {
+        "Random Forest": "random_forest",
+    }
+    slug_seg  = seg.lower().replace(" ","_").replace("/","_").replace(".","")
+    slug_mod  = MODELO_SLUG.get(entrada.modelo, "")
+    sufixo_sp = "_sem_pandemia" if entrada.excluir_pandemia else ""
+
+    pipe = None
+    # 1. Tenta modelo específico solicitado (ex: modelo_logistico_random_forest.pkl)
+    if slug_mod:
+        pkl_esp = MODEL_DIR / f"modelo_{slug_seg}_{slug_mod}{sufixo_sp}.pkl"
+        if pkl_esp.exists():
+            pipe = joblib.load(pkl_esp)
+
+    # 2. Fallback: melhor modelo do segmento (ex: modelo_logistico.pkl)
+    if pipe is None:
+        if sufixo_sp:
+            pkl_sp = MODEL_DIR / f"modelo_{slug_seg}{sufixo_sp}.pkl"
+            pipe = joblib.load(pkl_sp) if pkl_sp.exists() else MODELOS_SEG.get(seg)
+        else:
+            pipe = MODELOS_SEG.get(seg)
+
+    # 3. Fallback geral
+    if pipe is None:
+        pipe = FALLBACK
 
     if pipe is None:
         raise HTTPException(503, detail="Modelo nao disponivel.")
 
     info   = _get_meta_segmento(seg)
     melhor = info.get("melhor", "")
-    met    = info.get("metricas", {}).get(melhor, {})
+    # Busca métricas do modelo solicitado; se não houver, usa as do melhor
+    met = info.get("metricas", {}).get(entrada.modelo) or info.get("metricas", {}).get(melhor, {})
 
     # Lags iniciais — os 3 ultimos meses reais conhecidos
     lag1 = entrada.dy_lag1
@@ -549,8 +575,6 @@ def prever_serie(entrada: EntradaSerie):
             row["PVP_lag1"] = pvp if pvp is not None else np.nan
         if "SELIC" in num_cols:
             row["SELIC"] = selic
-        if "CDI" in num_cols:
-            row["CDI"] = selic
         if "Tipo_do_Fundo" in cat_cols:
             row["Tipo_do_Fundo"] = entrada.tipo_do_fundo or "Tijolo"
 
